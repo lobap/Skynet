@@ -15,7 +15,7 @@
         <button type="submit" class="ml-2 p-2 bg-blue-600 hover:bg-blue-700 rounded">Enviar</button>
     </form>
     <script>
-        const ws = new WebSocket('ws://localhost:8000/ws');
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
         function appendMessage(role, content) {
             const chatBox = document.getElementById('chat-box');
             const msgDiv = document.createElement('div');
