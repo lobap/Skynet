@@ -29,7 +29,7 @@ cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
 source venv/bin/activate
-python -m backend.main
+PYTHONPATH=. python backend/main.py
 EOF
 chmod +x ~/Skynet/run.sh
 
