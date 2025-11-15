@@ -38,9 +38,10 @@
         };
         document.getElementById('chat-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            const input = document.getElementById('prompt-input');
+            const input = document.getElementById('prompt-input') as HTMLInputElement;
             const goal = input.value;
             if (goal) {
+                appendMessage('user', goal);
                 ws.send(JSON.stringify({goal: goal}));
                 input.value = '';
             }
