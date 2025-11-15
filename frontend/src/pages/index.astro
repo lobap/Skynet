@@ -36,6 +36,9 @@
             const data = JSON.parse(event.data);
             appendMessage(data.role, data.content);
         };
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
         document.getElementById('chat-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const input = document.getElementById('prompt-input') as HTMLInputElement;
