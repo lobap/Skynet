@@ -30,11 +30,13 @@ def get_db():
     finally:
         db.close()
 
-app.mount("/static", StaticFiles(directory="../frontend/dist"), name="static")
+frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
+
+app.mount("/static", StaticFiles(directory=frontend_dist), name="static")
 
 @app.get("/")
 async def read_root():
-    return FileResponse("../frontend/dist/index.html")
+    return FileResponse(os.path.join(frontend_dist, "index.html"))
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
