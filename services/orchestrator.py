@@ -49,4 +49,4 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
         await websocket.send_text(json.dumps({"role": "agent-action", "content": observation}))
         db_session.add(ChatLog(role="agent-action", content=observation))
         db_session.commit()
-        history.extend([{"role": "assistant", "content": json.dumps(thought_action)}, {"role": "user", "content": observation})
+        history.extend([{"role": "assistant", "content": json.dumps(thought_action)}, {"role": "user", "content": observation}])
