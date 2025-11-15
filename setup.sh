@@ -53,7 +53,7 @@ if [ ! -d "frontend/dist" ]; then
 fi
 
 source venv/bin/activate
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info
 EOF
 chmod +x ~/Skynet/run.sh
 

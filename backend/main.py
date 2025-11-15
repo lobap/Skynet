@@ -43,6 +43,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     await websocket.accept()
     for log in db.query(models.ChatLog).all():
         await websocket.send_text(json.dumps({"role": log.role, "content": log.content}))
+    await websocket.send_text(json.dumps({"role": "agent-action", "content": "WebSocket connected successfully"}))
     try:
         while True:
             data = await websocket.receive_text()
