@@ -20,14 +20,38 @@ cd ..
 
 # Construir frontend
 cd frontend
+echo "Instalando dependencias de Node.js..."
 npm install
+if [ ! -d "node_modules" ]; then
+    echo "Error: npm install falló"
+    exit 1
+fi
+echo "Construyendo frontend..."
 npm run build
+if [ ! -d "dist" ]; then
+    echo "Error: npm run build falló"
+    exit 1
+fi
 cd ..
 
 # Crear script de ejecución en ~/Skynet
 cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
+
+# Verificar que el frontend esté construido
+if [ ! -d "frontend/dist" ]; then
+    echo "Construyendo frontend..."
+    cd frontend
+    npm install
+    npm run build
+    cd ..
+    if [ ! -d "frontend/dist" ]; then
+        echo "Error: No se pudo construir el frontend"
+        exit 1
+    fi
+fi
+
 source venv/bin/activate
 uvicorn backend.main:app --host 0.0.0.0 --port 8000
 EOF
