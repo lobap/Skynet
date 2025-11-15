@@ -24,19 +24,19 @@ npm install
 npm run build
 cd ..
 
-# Crear script de ejecución
-cat > run.sh << 'EOF'
+# Crear script de ejecución en ~/Skynet
+cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
 source venv/bin/activate
 cd backend
 python main.py
 EOF
-chmod +x run.sh
+chmod +x ~/Skynet/run.sh
 
 # Iniciar Ollama y descargar modelo
 ollama serve &
 sleep 5
 ollama pull llama3:8b-instruct
 
-echo "Configuración completa. Ejecuta: ./run.sh"
+echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"
