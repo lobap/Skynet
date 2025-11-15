@@ -29,7 +29,7 @@ cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
 source venv/bin/activate
-PYTHONPATH=. python backend/main.py
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 EOF
 chmod +x ~/Skynet/run.sh
 
