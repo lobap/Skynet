@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..')
+
 from fastapi import FastAPI, WebSocket, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
