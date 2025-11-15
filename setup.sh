@@ -60,6 +60,6 @@ chmod +x ~/Skynet/run.sh
 # Iniciar Ollama y descargar modelo
 ollama serve &
 sleep 5
-ollama pull llama3:8b-instruct
+ollama pull llama3.2:3b
 
 echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"

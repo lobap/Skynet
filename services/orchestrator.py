@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../backend/.env'))
 
-MODEL = os.getenv("OLLAMA_MODEL", "llama3:8b-instruct")
+MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
