@@ -10,12 +10,12 @@ import '../styles/theme.css';
     <title>Skynet</title>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
-    <div class="flex-1 flex justify-center p-4">
-        <div class="w-full max-w-4xl">
+    <div class="flex-1 overflow-y-auto p-4 pb-20" id="chat-container">
+        <div class="max-w-4xl mx-auto">
             <div id="chat-box" class="space-y-4"></div>
         </div>
     </div>
-    <div class="border-t bg-white p-4">
+    <div class="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
         <div class="max-w-4xl mx-auto">
             <form id="chat-form" class="flex space-x-2">
                 <input type="text" id="prompt-input" placeholder="Escribe tu instrucción..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -40,7 +40,8 @@ import '../styles/theme.css';
             }
             msgDiv.appendChild(bubble);
             chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
         }
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
