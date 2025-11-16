@@ -4,8 +4,16 @@ import os
 
 async def execute_shell(command: str) -> str:
     try:
-        process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        stdout, stderr = await process.communicate()
+        if command.startswith('sudo '):
+            password = os.getenv('SUDO_PASSWORD', '')
+            if not password:
+                return "Error: SUDO_PASSWORD not set"
+            # Use -S to read password from stdin
+            process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
+            stdout, stderr = await process.communicate(input=password.encode() + b'\n')
+        else:
+            process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdout, stderr = await process.communicate()
         return stdout.decode() if process.returncode == 0 else f"Error (code {process.returncode}): {stderr.decode()}"
     except Exception as e:
         return f"Exception: {str(e)}"
