@@ -15,10 +15,14 @@ async def file_manager(action: str, path: str, content: str = None) -> str:
         if action == "read":
             async with aiofiles.open(path, 'r') as f:
                 return await f.read()
-        elif action == "write":
+        elif action == "write" or action == "create":
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             async with aiofiles.open(path, 'w') as f:
                 await f.write(content)
             return "File written successfully."
+        elif action == "create_dir":
+            os.makedirs(path, exist_ok=True)
+            return "Directory created successfully."
         elif action == "list":
             return "\n".join(os.listdir(path))
         return "Invalid action."
