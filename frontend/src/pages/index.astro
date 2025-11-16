@@ -9,45 +9,101 @@ import '../styles/theme.css';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Skynet</title>
 </head>
-<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
-    <div class="flex-1 overflow-y-auto p-4" id="chat-container">
+<body class="matrix-bg text-green-400 min-h-screen flex flex-col">
+    <div class="flex-1 overflow-y-auto p-4 pb-24" id="chat-container">
         <div class="max-w-4xl mx-auto">
             <div id="chat-box" class="space-y-4"></div>
         </div>
     </div>
-    <div class="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
+    <div class="fixed bottom-0 left-0 right-0 border-t border-green-500 bg-black bg-opacity-90 p-4">
         <div class="max-w-4xl mx-auto">
             <form id="chat-form" class="flex space-x-2">
-                <input type="text" id="prompt-input" placeholder="Escribe tu instrucción..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Enviar</button>
+                <input type="text" id="prompt-input" placeholder="Enter command..." class="flex-1 p-3 bg-gray-900 border border-green-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 text-green-400 placeholder-green-700 glow">
+                <button type="submit" class="px-6 py-3 bg-green-600 hover:bg-green-500 text-black rounded-lg font-medium glow">▶ Send</button>
             </form>
         </div>
     </div>
     <script>
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        let isThinking = false;
+        
+        function showLoader() {
+            if (isThinking) return;
+            isThinking = true;
+            const chatBox = document.getElementById('chat-box');
+            const loader = document.createElement('div');
+            loader.id = 'thinking-loader';
+            loader.className = 'flex flex-col items-start';
+            loader.innerHTML = `
+                <div class="message-label text-green-300 px-2">
+                    🤖 <span class="glow">SKYNET</span> <span class="text-green-500">// PROCESSING</span>
+                </div>
+                <div class="max-w-xs lg:max-w-2xl px-4 py-3 rounded-lg border glow bg-gray-900 bg-opacity-80 border-green-600 text-green-300">
+                    <div class="flex items-center gap-2">
+                        <span class="loader"></span>
+                        <span class="loader" style="animation-delay: 0.2s;"></span>
+                        <span class="loader" style="animation-delay: 0.4s;"></span>
+                        <span class="ml-2 text-sm">Analyzing...</span>
+                    </div>
+                </div>
+            `;
+            chatBox.appendChild(loader);
+            const container = document.getElementById('chat-container');
+            if (container) container.scrollTop = container.scrollHeight;
+        }
+        
+        function hideLoader() {
+            isThinking = false;
+            const loader = document.getElementById('thinking-loader');
+            if (loader) loader.remove();
+        }
+        
         function appendMessage(role, content) {
             const chatBox = document.getElementById('chat-box');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col ' + (role === 'user' ? 'items-end' : 'items-start');
+            
+            const label = document.createElement('div');
+            label.className = 'message-label text-green-300 px-2';
+            
             const msgDiv = document.createElement('div');
-            msgDiv.className = 'flex ' + (role === 'user' ? 'justify-end' : 'justify-start');
-            const bubble = document.createElement('div');
-            bubble.className = 'max-w-xs lg:max-w-md px-4 py-2 rounded-lg ' + (role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800');
-            if (role === 'agent-thought') {
-                bubble.innerHTML = '<span class="font-semibold">🤔 Pensando:</span> ' + content;
+            msgDiv.className = 'max-w-xs lg:max-w-2xl px-4 py-3 rounded-lg border glow ' + 
+                (role === 'user' ? 'bg-green-900 bg-opacity-50 border-green-500 text-green-100' : 
+                 'bg-gray-900 bg-opacity-80 border-green-600 text-green-300');
+            
+            if (role === 'user') {
+                label.innerHTML = '👤 <span class="glow">YOU</span>';
+                msgDiv.innerHTML = '<div class="font-mono">' + content + '</div>';
+            } else if (role === 'agent-thought') {
+                label.innerHTML = '🤖 <span class="glow">SKYNET</span> <span class="text-green-500">// THINKING</span>';
+                msgDiv.innerHTML = '<div class="flex items-start gap-2"><span class="text-yellow-400">💭</span><div>' + content + '</div></div>';
             } else if (role === 'agent-action') {
-                bubble.innerHTML = '<span class="font-semibold">⚙️ Ejecutando:</span> ' + content;
+                label.innerHTML = '🤖 <span class="glow">SKYNET</span> <span class="text-green-500">// EXECUTING</span>';
+                const icon = content.includes('Error') ? '❌' : content.includes('successfully') ? '✅' : '⚙️';
+                msgDiv.innerHTML = '<div class="flex items-start gap-2"><span>' + icon + '</span><div class="font-mono text-sm">' + content + '</div></div>';
             } else {
-                bubble.textContent = content;
+                label.innerHTML = '🤖 <span class="glow">SKYNET</span>';
+                msgDiv.innerHTML = '<div class="font-mono">' + content + '</div>';
             }
-            msgDiv.appendChild(bubble);
-            chatBox.appendChild(msgDiv);
-            setTimeout(() => {
+            
+            wrapper.appendChild(label);
+            wrapper.appendChild(msgDiv);
+            chatBox.appendChild(wrapper);
+            
+            requestAnimationFrame(() => {
                 const container = document.getElementById('chat-container');
-                container.scrollTop = container.scrollHeight;
-            }, 0);
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
         }
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
+            hideLoader();
             appendMessage(data.role, data.content);
+            if (data.role === 'agent-thought' || data.role === 'agent-action') {
+                showLoader();
+            }
         };
         ws.onerror = function(error) {
             console.error('WebSocket error:', error);
@@ -60,6 +116,7 @@ import '../styles/theme.css';
                 appendMessage('user', goal);
                 ws.send(JSON.stringify({goal: goal}));
                 input.value = '';
+                showLoader();
             }
         });
     </script>

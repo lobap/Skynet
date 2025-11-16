@@ -1,0 +1,33 @@
+body {
+  font-family: 'Courier New', 'Consolas', monospace;
+}
+
+.glow {
+  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+}
+
+.matrix-bg {
+  background: linear-gradient(180deg, #000000, #001a00);
+}
+
+.message-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  opacity: 0.8;
+}
+
+.loader {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ff00;
+  animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 5px #00ff00;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.2); }
+}
