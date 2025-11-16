@@ -41,7 +41,20 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
             tool_name = action['name']
             params = action['parameters']
             if tool_name in TOOL_MAP:
-                observation = await TOOL_MAP[tool_name](params['command']) if tool_name == "execute_shell" else await TOOL_MAP[tool_name](params['action'], params['path'], params.get('content'))
+                if tool_name == "execute_shell":
+                    cmd = params.get('command', '')
+                    if cmd:
+                        observation = await TOOL_MAP[tool_name](cmd)
+                    else:
+                        observation = "Invalid parameters: missing command"
+                else:
+                    act = params.get('action', '')
+                    path = params.get('path', '')
+                    content = params.get('content', '')
+                    if act and path:
+                        observation = await TOOL_MAP[tool_name](act, path, content)
+                    else:
+                        observation = "Invalid parameters: missing action or path"
             else:
                 observation = "Tool not found."
         else:
