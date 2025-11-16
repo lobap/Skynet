@@ -10,12 +10,9 @@ async def execute_shell(command: str) -> str:
     try:
         if command.startswith('sudo '):
             password = vault.get_credential('sudo_password') or os.getenv('SUDO_PASSWORD', '')
-            user = vault.get_credential('sudo_user') or os.getenv('SUDO_USER', '')
             if not password:
                 return "Error: sudo password not found in vault or .env. Use store_credential tool to set it."
-            if user:
-                command = command.replace('sudo ', f'sudo -u {user} ', 1)
-            # Use -S to read password from stdin
+            command = command.replace('sudo ', 'sudo -S ', 1)
             process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
             stdout, stderr = await process.communicate(input=password.encode() + b'\n')
         else:

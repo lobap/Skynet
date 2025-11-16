@@ -57,3 +57,21 @@ body {
 .error-msg {
   border-left-color: #ff0000;
 }
+
+#messages-panel {
+  scrollbar-color: #00ff00 #040404;
+  scrollbar-width: thin;
+}
+
+#messages-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+#messages-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 0, 0.6);
+  border-radius: 999px;
+}
+
+#messages-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}

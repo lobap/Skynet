@@ -18,13 +18,13 @@ import '../styles/theme.css';
             <span class="text-blue-600">HOST:</span> <span id="host-info" class="text-blue-400">loading...</span>
         </div>
     </div>
-    <div class="flex-1 pt-16 pb-24 flex flex-col">
-        <div class="flex-1 overflow-y-auto p-4" id="chat-container">
+    <main class="flex-1 pt-16 pb-24 flex flex-col">
+        <div id="messages-panel" class="flex-1 overflow-y-auto p-4">
             <div class="max-w-4xl mx-auto">
                 <div id="chat-box" class="space-y-4"></div>
             </div>
         </div>
-    </div>
+    </main>
     <div class="fixed bottom-0 left-0 right-0 border-t border-green-500 bg-black bg-opacity-90 p-4 z-50">
         <div class="max-w-4xl mx-auto">
             <form id="chat-form" class="flex space-x-2">
@@ -34,21 +34,32 @@ import '../styles/theme.css';
         </div>
     </div>
     <script>
+        const modelInfoEl = document.getElementById('model-info');
+        const hostInfoEl = document.getElementById('host-info');
+
         fetch('/api/info')
             .then(res => res.json())
             .then(data => {
-                document.getElementById('model-info').textContent = data.model;
-                document.getElementById('host-info').textContent = data.hostname;
+                if (modelInfoEl) modelInfoEl.textContent = data.model;
+                if (hostInfoEl) hostInfoEl.textContent = data.hostname;
             })
             .catch(err => console.error('Failed to fetch system info:', err));
 
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
         let isThinking = false;
+
+        function scrollMessages() {
+            const panel = document.getElementById('messages-panel');
+            if (panel) {
+                panel.scrollTop = panel.scrollHeight;
+            }
+        }
         
         function showLoader() {
             if (isThinking) return;
             isThinking = true;
             const chatBox = document.getElementById('chat-box');
+            if (!chatBox) return;
             const loader = document.createElement('div');
             loader.id = 'thinking-loader';
             loader.className = 'flex flex-col items-start';
@@ -66,12 +77,7 @@ import '../styles/theme.css';
                 </div>
             `;
             chatBox.appendChild(loader);
-            requestAnimationFrame(() => {
-                const container = document.getElementById('chat-container');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
-            });
+            requestAnimationFrame(scrollMessages);
         }
         
         function hideLoader() {
@@ -80,8 +86,13 @@ import '../styles/theme.css';
             if (loader) loader.remove();
         }
         
-        function appendMessage(role, content) {
+        /**
+         * @param {string} role
+         * @param {string} content
+         */
+        function appendMessage(role: string, content: string) {
             const chatBox = document.getElementById('chat-box');
+            if (!chatBox) return;
             const wrapper = document.createElement('div');
             wrapper.className = 'flex flex-col ' + (role === 'user' ? 'items-end' : 'items-start');
             
@@ -117,12 +128,7 @@ import '../styles/theme.css';
             wrapper.appendChild(msgDiv);
             chatBox.appendChild(wrapper);
             
-            requestAnimationFrame(() => {
-                const container = document.getElementById('chat-container');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
-            });
+            requestAnimationFrame(scrollMessages);
         }
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
@@ -135,17 +141,20 @@ import '../styles/theme.css';
         ws.onerror = function(error) {
             console.error('WebSocket error:', error);
         };
-        document.getElementById('chat-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const input = document.getElementById('prompt-input') as HTMLInputElement;
-            const goal = input.value;
-            if (goal) {
-                appendMessage('user', goal);
-                ws.send(JSON.stringify({goal: goal}));
-                input.value = '';
-                showLoader();
-            }
-        });
+        const chatForm = document.getElementById('chat-form');
+        const promptInput = document.getElementById('prompt-input');
+        if (chatForm && promptInput instanceof HTMLInputElement) {
+            chatForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const goal = promptInput.value;
+                if (goal) {
+                    appendMessage('user', goal);
+                    ws.send(JSON.stringify({goal: goal}));
+                    promptInput.value = '';
+                    showLoader();
+                }
+            });
+        }
     </script>
 </body>
 </html>
