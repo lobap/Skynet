@@ -14,7 +14,8 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  opacity: 0.8;
+  opacity: 0.9;
+  letter-spacing: 0.5px;
 }
 
 .loader {
@@ -30,4 +31,29 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(1.2); }
+}
+
+.console-output {
+  background: #0a0a0a;
+  border-left: 3px solid #00ff00;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.thought-bubble {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-left: 3px solid #ffd700;
+  font-style: italic;
+}
+
+.success-msg {
+  border-left-color: #00ff00;
+}
+
+.error-msg {
+  border-left-color: #ff0000;
 }

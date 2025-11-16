@@ -10,7 +10,11 @@ from fastapi import WebSocketDisconnect
 from sqlalchemy.orm import Session
 from services.database import database, models
 from services.agent import orchestrator
+from dotenv import load_dotenv
 import json
+import socket
+
+load_dotenv()
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -23,6 +27,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/api/info")
+async def get_system_info():
+    return {
+        "model": os.getenv("OLLAMA_MODEL", "unknown"),
+        "hostname": socket.gethostname()
+    }
 
 def get_db():
     db = database.SessionLocal()

@@ -18,6 +18,8 @@ with open(os.path.join(os.path.dirname(__file__), 'leyes.txt'), "r") as f:
 TOOL_MAP = {
     "execute_shell": tools.execute_shell,
     "file_manager": tools.file_manager,
+    "store_credential": tools.store_credential,
+    "get_credential": tools.get_credential,
 }
 
 async def run_agent_loop(goal: str, websocket, db_session: Session):
@@ -47,7 +49,7 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
                         observation = await TOOL_MAP[tool_name](cmd)
                     else:
                         observation = "Invalid parameters: missing command"
-                else:
+                elif tool_name == "file_manager":
                     act = params.get('action', '')
                     path = params.get('path', '')
                     content = params.get('content', '')
@@ -55,6 +57,18 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
                         observation = await TOOL_MAP[tool_name](act, path, content)
                     else:
                         observation = "Invalid parameters: missing action or path"
+                elif tool_name in ["store_credential", "get_credential"]:
+                    key = params.get('key', '')
+                    if key:
+                        if tool_name == "store_credential":
+                            value = params.get('value', '')
+                            observation = await TOOL_MAP[tool_name](key, value) if value else "Invalid parameters: missing value"
+                        else:
+                            observation = await TOOL_MAP[tool_name](key)
+                    else:
+                        observation = "Invalid parameters: missing key"
+                else:
+                    observation = "Unknown tool"
             else:
                 observation = "Tool not found."
         else:

@@ -33,6 +33,27 @@ if ! pip list | grep -q fastapi; then
 else
     echo "Dependencias Python ya instaladas."
 fi
+
+echo "Inicializando vault de credenciales..."
+python << 'PYEOF'
+import sys
+import os
+sys.path.append('..')
+from services.tools import vault
+from dotenv import load_dotenv
+
+load_dotenv('.env')
+sudo_user = os.getenv('SUDO_USER', '')
+sudo_pwd = os.getenv('SUDO_PASSWORD', '')
+
+if sudo_user:
+    vault.set_credential('sudo_user', sudo_user)
+    print(f"Stored sudo_user: {sudo_user}")
+if sudo_pwd:
+    vault.set_credential('sudo_password', sudo_pwd)
+    print("Stored sudo_password")
+PYEOF
+
 cd ..
 
 cd frontend
