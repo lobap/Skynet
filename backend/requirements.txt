@@ -4,3 +4,4 @@ sqlalchemy
 ollama
 python-dotenv
 aiofiles
+python-telegram-bot

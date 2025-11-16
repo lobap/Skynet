@@ -2,23 +2,39 @@
 
 echo "Configurando Skynet en VM Linux..."
 
-# Instalar dependencias del sistema
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv nodejs npm git curl
+if ! dpkg -l | grep -q python3; then
+    echo "Instalando dependencias del sistema..."
+    sudo apt update
+    sudo apt install -y python3 python3-pip python3-venv nodejs npm git curl
+else
+    echo "Dependencias del sistema ya instaladas."
+fi
 
-# Instalar Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
+if ! command -v ollama &> /dev/null; then
+    echo "Instalando Ollama..."
+    curl -fsSL https://ollama.ai/install.sh | sh
+else
+    echo "Ollama ya instalado."
+fi
 
-# Crear entorno virtual
-python3 -m venv venv
+if [ ! -d "venv" ]; then
+    echo "Creando entorno virtual..."
+    python3 -m venv venv
+else
+    echo "Entorno virtual ya existe."
+fi
+
 source venv/bin/activate
 
-# Instalar dependencias Python en venv
 cd backend
-pip install -r requirements.txt
+if ! pip list | grep -q fastapi; then
+    echo "Instalando dependencias Python..."
+    pip install -r requirements.txt
+else
+    echo "Dependencias Python ya instaladas."
+fi
 cd ..
 
-# Construir frontend
 cd frontend
 echo "Instalando dependencias de Node.js..."
 npm install
@@ -34,12 +50,10 @@ if [ ! -d "dist" ]; then
 fi
 cd ..
 
-# Crear script de ejecución en ~/Skynet
 cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
 
-# Verificar que el frontend esté construido
 if [ ! -d "frontend/dist" ]; then
     echo "Construyendo frontend..."
     cd frontend
@@ -57,9 +71,19 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info
 EOF
 chmod +x ~/Skynet/run.sh
 
-# Iniciar Ollama y descargar modelo
-ollama serve &
-sleep 5
-ollama pull llama3.1:8b
+if ! pgrep -x "ollama" > /dev/null; then
+    echo "Iniciando Ollama..."
+    ollama serve &
+    sleep 5
+else
+    echo "Ollama ya corriendo."
+fi
+
+if ! ollama list | grep -q "llama3.1:8b"; then
+    echo "Descargando modelo llama3.1:8b..."
+    ollama pull llama3.1:8b
+else
+    echo "Modelo llama3.1:8b ya disponible."
+fi
 
 echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"

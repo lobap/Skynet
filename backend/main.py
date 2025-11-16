@@ -8,7 +8,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import WebSocketDisconnect
 from sqlalchemy.orm import Session
-from services import database, models, orchestrator
+from services.database import database, models
+from services.agent import orchestrator
 import json
 
 models.Base.metadata.create_all(bind=database.engine)

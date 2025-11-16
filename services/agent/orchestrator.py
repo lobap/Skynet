@@ -2,8 +2,8 @@ import ollama
 import json
 import os
 from dotenv import load_dotenv
-from . import tools
-from .models import ChatLog
+from ..tools import tools
+from ..database.models import ChatLog
 from sqlalchemy.orm import Session
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../backend/.env'))
