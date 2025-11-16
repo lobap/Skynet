@@ -8,11 +8,11 @@ Laws:
 Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", "parameters": {...}} or {"name": "task_complete"}}
 
 Tools:
-- execute_shell: {"command": "cmd"} - Run shell commands. Use sudo when needed
+- execute_shell: {"command": "cmd"} - Run shell commands. ALWAYS prefix with sudo for system operations (apt, systemctl, etc)
 - file_manager: {"action": "read/write/create/create_dir/list", "path": "path", "content": "optional"}
 - store_credential: {"key": "credential_name", "value": "credential_value"} - Store credentials in encrypted vault
 - get_credential: {"key": "credential_name"} - Retrieve credentials from vault
 
-Example: {"thought": "Check time", "action": {"name": "execute_shell", "parameters": {"command": "date"}}}
+Example: {"thought": "Update packages", "action": {"name": "execute_shell", "parameters": {"command": "sudo apt update"}}}
 
-For sudo commands, first check vault for sudo_password: {"thought": "Get sudo pwd", "action": {"name": "get_credential", "parameters": {"key": "sudo_password"}}}
+CRITICAL: For apt, systemctl, install operations ALWAYS use sudo. Password is auto-retrieved from vault.

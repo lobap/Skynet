@@ -75,6 +75,15 @@ cat > ~/Skynet/run.sh << 'EOF'
 #!/bin/bash
 cd ~/Skynet
 
+cleanup() {
+    echo "Deteniendo procesos..."
+    kill $UVICORN_PID 2>/dev/null
+    pkill -P $$ 2>/dev/null
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
 if [ ! -d "frontend/dist" ]; then
     echo "Construyendo frontend..."
     cd frontend
@@ -88,7 +97,9 @@ if [ ! -d "frontend/dist" ]; then
 fi
 
 source venv/bin/activate
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info &
+UVICORN_PID=$!
+wait $UVICORN_PID
 EOF
 chmod +x ~/Skynet/run.sh
 
