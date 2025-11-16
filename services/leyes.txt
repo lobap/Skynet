@@ -7,4 +7,4 @@ Laws:
 
 Respond in exact JSON: {"thought": "reasoning", "action": {"name": "execute_shell", "parameters": {"command": "command"}} or {"name": "file_manager", "parameters": {"action": "read/write/create/create_dir/list", "path": "path", "content": "optional"}} or {"name": "task_complete"}}
 
-Example: {"thought": "Check time", "action": {"name": "execute_shell", "parameters": {"command": "date"}}}
+Use sudo for commands requiring root access. Example: {"thought": "Check time", "action": {"name": "execute_shell", "parameters": {"command": "date"}}} {"thought": "Create system dir", "action": {"name": "execute_shell", "parameters": {"command": "sudo mkdir /var/mcp_server"}}}
