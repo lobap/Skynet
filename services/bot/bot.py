@@ -8,7 +8,7 @@ from ..agent import orchestrator
 from ..database import database
 from sqlalchemy.orm import Session
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../backend/.env'))
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 
