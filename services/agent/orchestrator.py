@@ -22,7 +22,7 @@ TOOL_MAP = {
     "get_credential": tools.get_credential,
 }
 
-async def run_agent_loop(goal: str, websocket, db_session: Session):
+async def run_agent_loop(goal: str, websocket, db_session: Session, conversation_id: int = None):
     client = ollama.AsyncClient(host=HOST)
     history = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": goal}]
     recent_signatures = []
@@ -36,7 +36,7 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
         thought = thought_action.get('thought', '')
         action = thought_action.get('action', {})
         await websocket.send_text(json.dumps({"role": "agent-thought", "content": thought}))
-        db_session.add(ChatLog(role="agent-thought", content=thought))
+        db_session.add(ChatLog(role="agent-thought", content=thought, conversation_id=conversation_id))
         db_session.commit()
         if action.get('name') == 'task_complete':
             break
@@ -82,6 +82,6 @@ async def run_agent_loop(goal: str, websocket, db_session: Session):
         else:
             observation = "No action specified."
         await websocket.send_text(json.dumps({"role": "agent-action", "content": observation}))
-        db_session.add(ChatLog(role="agent-action", content=observation))
+        db_session.add(ChatLog(role="agent-action", content=observation, conversation_id=conversation_id))
         db_session.commit()
         history.extend([{"role": "assistant", "content": json.dumps(thought_action)}, {"role": "user", "content": observation}])

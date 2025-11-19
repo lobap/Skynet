@@ -10,49 +10,75 @@ import '../styles/theme.css';
     <title>Skynet Terminal</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="matrix-bg text-green-400 min-h-screen flex flex-col font-mono">
-    <!-- Header / Status Bar -->
-    <div class="fixed top-0 left-0 right-0 bg-black bg-opacity-90 border-b border-green-900 p-2 z-50 flex justify-between items-center px-4">
-        <div class="text-lg font-bold glow">SKYNET v2.0</div>
-        <div class="flex gap-4 text-xs">
-            <div>MODEL: <span id="model-info" class="text-green-200">...</span></div>
-            <div>HOST: <span id="host-info" class="text-blue-300">...</span></div>
+<body class="matrix-bg text-green-400 min-h-screen flex font-mono overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-black border-r border-green-900 flex flex-col z-40 hidden md:flex">
+        <div class="p-4 border-b border-green-900">
+            <button id="new-chat-btn" class="w-full py-2 px-4 border border-green-500 rounded hover:bg-green-900 transition-colors flex items-center justify-center gap-2 text-sm">
+                <span>+</span> New Chat
+            </button>
         </div>
-    </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="conversations-list">
+            <!-- Conversations will be loaded here -->
+        </div>
+        <div class="p-4 border-t border-green-900 text-xs text-green-700">
+            <div>MODEL: <span id="model-info">...</span></div>
+            <div>HOST: <span id="host-info">...</span></div>
+        </div>
+    </aside>
 
-    <!-- Main Chat Area -->
-    <main class="flex-1 pt-12 pb-32 flex flex-col">
-        <div id="messages-panel" class="flex-1 overflow-y-auto">
-            <div id="chat-box" class="flex flex-col pb-4">
-                <!-- Messages will be appended here -->
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col relative h-screen">
+        <!-- Header (Mobile only mostly, or simple status) -->
+        <div class="absolute top-0 left-0 right-0 p-4 z-30 pointer-events-none flex justify-between md:justify-end">
+            <button id="mobile-menu-btn" class="md:hidden pointer-events-auto text-green-500 border border-green-500 px-2 rounded">☰</button>
+            <div class="text-xs font-bold glow opacity-50">SKYNET TERMINAL</div>
+        </div>
+
+        <!-- Chat Area -->
+        <main class="flex-1 overflow-hidden flex flex-col relative">
+            <div id="messages-panel" class="flex-1 overflow-y-auto p-4 pb-32 scroll-smooth">
+                <div id="chat-box" class="flex flex-col pb-4 max-w-3xl mx-auto w-full">
+                    <!-- Messages -->
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
 
-    <!-- Input Area -->
-    <div class="fixed bottom-0 left-0 right-0 input-area p-4 z-50">
-        <div class="max-w-3xl mx-auto">
-            <form id="chat-form" class="relative">
-                <input type="text" id="prompt-input" 
-                    placeholder="Send a command to Skynet..." 
-                    class="w-full p-4 pr-12 rounded-lg chat-input bg-black text-green-400 placeholder-green-800 focus:outline-none"
-                    autocomplete="off"
-                >
-                <button type="submit" class="absolute right-2 top-2 bottom-2 px-4 text-green-500 hover:text-green-300 transition-colors">
-                    ▶
-                </button>
-            </form>
-            <div class="text-center text-xs text-green-800 mt-2">
-                Skynet may produce inaccurate information about people, places, or facts.
+        <!-- Input Area -->
+        <div class="w-full bg-gradient-to-t from-black via-black to-transparent p-4 pb-6 z-50">
+            <div class="max-w-3xl mx-auto relative">
+                <form id="chat-form" class="relative">
+                    <input type="text" id="prompt-input" 
+                        placeholder="Send a command..." 
+                        class="w-full p-4 pr-12 rounded-lg bg-black border border-green-800 text-green-400 placeholder-green-900 focus:outline-none focus:border-green-500 shadow-[0_0_15px_rgba(0,255,0,0.1)] transition-all"
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-green-600 hover:text-green-400 transition-colors">
+                        ▶
+                    </button>
+                </form>
+                <div class="text-center text-[10px] text-green-900 mt-2 uppercase tracking-widest">
+                    Authorized Personnel Only
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // System Info
+        // State
+        let currentConversationId: number | null = null;
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        let isThinking = false;
+
+        // DOM Elements
+        const chatBox = document.getElementById('chat-box');
+        const messagesPanel = document.getElementById('messages-panel');
+        const conversationsList = document.getElementById('conversations-list');
+        const newChatBtn = document.getElementById('new-chat-btn');
         const modelInfoEl = document.getElementById('model-info');
         const hostInfoEl = document.getElementById('host-info');
 
+        // System Info
         fetch('/api/info')
             .then(res => res.json())
             .then(data => {
@@ -61,22 +87,60 @@ import '../styles/theme.css';
             })
             .catch(err => console.error('Failed to fetch system info:', err));
 
-        // WebSocket
-        const ws = new WebSocket(`ws://${window.location.host}/ws`);
-        let isThinking = false;
+        // Load Conversations
+        async function loadConversations() {
+            try {
+                const res = await fetch('/api/conversations');
+                const conversations = await res.json();
+                if (conversationsList) {
+                    conversationsList.innerHTML = conversations.map((c: any) => `
+                        <button onclick="switchConversation(${c.id})" class="w-full text-left px-3 py-2 rounded hover:bg-green-900/30 text-xs truncate transition-colors ${c.id === currentConversationId ? 'bg-green-900/50 text-green-300' : 'text-green-600'}">
+                            ${c.title}
+                        </button>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load conversations:', err);
+            }
+        }
 
+        // Switch Conversation
+        // @ts-ignore
+        window.switchConversation = async (id) => {
+            currentConversationId = id;
+            if (chatBox) chatBox.innerHTML = ''; // Clear current messages
+            
+            // Load messages
+            try {
+                const res = await fetch(`/api/conversations/${id}`);
+                const messages = await res.json();
+                messages.forEach((msg: any) => appendMessage(msg.role, msg.content));
+                loadConversations(); // Refresh list to update active state
+            } catch (err) {
+                console.error('Failed to load messages:', err);
+            }
+        };
+
+        // New Chat
+        newChatBtn?.addEventListener('click', () => {
+            currentConversationId = null;
+            if (chatBox) chatBox.innerHTML = '';
+            loadConversations();
+        });
+
+        // Initial Load
+        loadConversations();
+
+        // WebSocket Logic
         function scrollMessages() {
-            const panel = document.getElementById('messages-panel');
-            if (panel) {
-                panel.scrollTop = panel.scrollHeight;
+            if (messagesPanel) {
+                messagesPanel.scrollTop = messagesPanel.scrollHeight;
             }
         }
         
         function showLoader() {
-            if (isThinking) return;
+            if (isThinking || !chatBox) return;
             isThinking = true;
-            const chatBox = document.getElementById('chat-box');
-            if (!chatBox) return;
             
             const loaderDiv = document.createElement('div');
             loaderDiv.id = 'thinking-loader';
@@ -107,7 +171,6 @@ import '../styles/theme.css';
          * @param {string} content
          */
         function appendMessage(role: string, content: string) {
-            const chatBox = document.getElementById('chat-box');
             if (!chatBox) return;
 
             const msgDiv = document.createElement('div');
@@ -140,7 +203,6 @@ import '../styles/theme.css';
                         <div class="console-output">${content}</div>
                     </div>`;
             } else {
-                // Standard agent message
                 contentHtml = `<div class="markdown-content">${parsedContent}</div>`;
             }
 
@@ -157,6 +219,13 @@ import '../styles/theme.css';
 
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
+            
+            if (data.type === 'conversation_created') {
+                currentConversationId = data.id;
+                loadConversations();
+                return;
+            }
+
             hideLoader();
             appendMessage(data.role, data.content);
             if (data.role === 'agent-thought' || data.role === 'agent-action') {
@@ -177,7 +246,10 @@ import '../styles/theme.css';
                 const goal = promptInput.value;
                 if (goal) {
                     appendMessage('user', goal);
-                    ws.send(JSON.stringify({goal: goal}));
+                    ws.send(JSON.stringify({
+                        goal: goal,
+                        conversation_id: currentConversationId
+                    }));
                     promptInput.value = '';
                     showLoader();
                 }

@@ -2,14 +2,54 @@ body {
   font-family: 'Courier New', 'Consolas', monospace;
   background-color: #000000;
   color: #00ff00;
+  overflow: hidden; /* Prevent body scroll, handle in main */
 }
 
 .glow {
   text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
 }
 
+/* Moving Matrix/Grid Background */
 .matrix-bg {
-  background: radial-gradient(circle at center, #001a00 0%, #000000 100%);
+  background-color: #000;
+  background-image: 
+    linear-gradient(rgba(0, 255, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 0, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  animation: backgroundMove 20s linear infinite;
+  position: relative;
+}
+
+.matrix-bg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, transparent 0%, #000 90%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes backgroundMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 20px; }
+}
+
+/* CRT Scanline Effect */
+.matrix-bg::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 2;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
 }
 
 /* Scrollbar */
