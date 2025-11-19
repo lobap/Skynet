@@ -26,17 +26,16 @@ fi
 
 source venv/bin/activate
 
-cd backend
-if ! pip list | grep -q fastapi; then
-    echo "Instalando dependencias Python..."
-    pip install -r requirements.txt
+echo "Verificando dependencias Python..."
+pip install -r requirements.txt
+
+if ! pip list | grep -q playwright; then
     echo "Instalando Playwright..."
     pip install playwright
     playwright install --with-deps chromium
-else
-    echo "Dependencias Python ya instaladas."
 fi
 
+cd backend
 echo "Inicializando vault de credenciales..."
 python << 'PYEOF'
 import sys

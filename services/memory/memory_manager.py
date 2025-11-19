@@ -1,12 +1,23 @@
 import os
-import chromadb
-from chromadb.utils import embedding_functions
+try:
+    import chromadb
+    from chromadb.utils import embedding_functions
+    CHROMA_AVAILABLE = True
+except ImportError:
+    CHROMA_AVAILABLE = False
+    chromadb = None
+
 import glob
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class MemoryManager:
     def __init__(self, persist_path=None):
+        self.collection = None
+        if not CHROMA_AVAILABLE:
+            print("Warning: ChromaDB not installed. Memory features disabled.")
+            return
+
         if persist_path is None:
             persist_path = os.path.join(BASE_DIR, "services", "memory", "db")
             
@@ -54,6 +65,9 @@ class MemoryManager:
         return [c for c in chunks if c.strip()]
 
     def index_codebase(self):
+        if not self.collection:
+            return "Memory disabled (ChromaDB missing)."
+            
         root_dirs = [os.path.join(BASE_DIR, "backend"), os.path.join(BASE_DIR, "services")]
         documents = []
         metadatas = []
@@ -97,6 +111,9 @@ class MemoryManager:
 
     def index_text(self, source: str, text: str):
         """Indexes arbitrary text content (e.g., from documentation)."""
+        if not self.collection:
+            return "Memory disabled."
+
         chunks = self.chunk_content(text, source)
         documents = []
         metadatas = []
@@ -119,6 +136,9 @@ class MemoryManager:
         return f"Indexed {len(documents)} chunks from {source}."
 
     def query(self, query_text, n_results=3):
+        if not self.collection:
+            return {"documents": [], "metadatas": []}
+            
         results = self.collection.query(
             query_texts=[query_text],
             n_results=n_results

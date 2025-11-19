@@ -1,5 +1,12 @@
-import aiohttp
-from bs4 import BeautifulSoup
+try:
+    import aiohttp
+    from bs4 import BeautifulSoup
+    DEPS_AVAILABLE = True
+except ImportError:
+    DEPS_AVAILABLE = False
+    aiohttp = None
+    BeautifulSoup = None
+
 from ...memory.memory_manager import memory
 import urllib.parse
 
@@ -9,6 +16,9 @@ async def learn_tech(topic: str, url: str = None) -> str:
     If URL is provided, it scrapes it. If not, it asks for one (or could search if implemented).
     Indexes the learned content into the vector memory.
     """
+    if not DEPS_AVAILABLE:
+        return "Error: 'aiohttp' or 'beautifulsoup4' libraries are missing. Please install them to use this tool."
+
     if not url:
         return f"Please provide a specific URL to the documentation for '{topic}'. I need a source to learn from."
 

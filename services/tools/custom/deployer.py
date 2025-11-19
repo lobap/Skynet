@@ -1,6 +1,10 @@
 import asyncio
 import os
-import aiofiles
+try:
+    import aiofiles
+    AIOFILES_AVAILABLE = True
+except ImportError:
+    AIOFILES_AVAILABLE = False
 
 async def run_test_and_apply(test_path: str, target_path: str, source_code: str) -> str:
     """
@@ -38,8 +42,13 @@ async def run_test_and_apply(test_path: str, target_path: str, source_code: str)
             has_backup = True
             
         # Write new code
-        async with aiofiles.open(target_path, 'w') as f:
-            await f.write(source_code)
+        if AIOFILES_AVAILABLE:
+            async with aiofiles.open(target_path, 'w') as f:
+                await f.write(source_code)
+        else:
+            # Fallback to blocking I/O if aiofiles is missing
+            with open(target_path, 'w') as f:
+                f.write(source_code)
             
         # Run test
         # We use a subprocess to ensure clean import state
