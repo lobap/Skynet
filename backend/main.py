@@ -55,6 +55,8 @@ async def get_changelog(db: Session = Depends(get_db)):
 
 @app.get("/api/tasks/active")
 async def get_active_tasks():
+    if not scheduler.scheduler:
+        return []
     jobs = scheduler.scheduler.get_jobs()
     return [{"id": job.id, "name": job.name, "next_run": str(job.next_run_time)} for job in jobs]
 

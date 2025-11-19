@@ -1,10 +1,18 @@
-import git
 import os
 from typing import List, Dict, Optional
+
+try:
+    import git
+    GIT_AVAILABLE = True
+except ImportError:
+    GIT_AVAILABLE = False
+    git = None
 
 REPO_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
 
 def get_repo():
+    if not GIT_AVAILABLE:
+        raise ImportError("GitPython module is not installed. Please run 'pip install GitPython'.")
     try:
         return git.Repo(REPO_PATH)
     except git.exc.InvalidGitRepositoryError:

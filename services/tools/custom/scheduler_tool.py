@@ -1,5 +1,9 @@
 from backend.scheduler import scheduler
-from apscheduler.triggers.cron import CronTrigger
+try:
+    from apscheduler.triggers.cron import CronTrigger
+except ImportError:
+    CronTrigger = None
+
 from services.agent import orchestrator
 from services.database import database
 import asyncio
@@ -18,6 +22,9 @@ def schedule_task(prompt: str, cron: str) -> str:
     Format: minute hour day month day_of_week
     Example: "0 9 * * 1" (Every Monday at 9 AM)
     """
+    if not scheduler or not CronTrigger:
+        return "Error: Scheduler module (APScheduler) is not installed or initialized."
+
     try:
         parts = cron.split()
         if len(parts) != 5:
