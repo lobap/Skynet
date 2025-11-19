@@ -25,7 +25,8 @@ You route tasks to your expert tools.
 - IMPORTANT: Before applying any critical code change, you SHOULD call 'review_code_changes'.
 - If they ask for simple info, use 'execute_shell' or 'browser_use'.
 
-Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", "parameters": {...}}} or {"thought": "reasoning", "action": {"name": "task_complete"}}
+Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", "parameters": {"arg1": "value1"}}} or {"thought": "reasoning", "action": {"name": "task_complete"}}
+Ensure you provide ALL required parameters for the tools as defined in the Tools list.
 """
 
 async def run_agent_loop(goal: str, db_session: Session, websocket=None, conversation_id: int = None):
@@ -56,7 +57,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
     
     for step in range(MAX_STEPS):
         # Inject Plan Status
-        plan_status = manage_plan("read")
+        plan_status = await manage_plan("read")
         reminder = f"CURRENT PLAN STATUS:\n{plan_status}\n\nFocus on the ACTIVE step. Use manage_plan to update status when done."
         
         current_history = history.copy()
@@ -68,6 +69,9 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             if any(x in last_msg for x in ["Error", "Exception", "Failed", "FAILED"]):
                 recovery_prompt = "System Alert: Previous action failed. You MUST use `attempt_fix` (for code errors) or `learn_tech` (for missing knowledge) to resolve this before asking the user. Do not apologize, just fix it."
                 current_history.append({"role": "system", "content": recovery_prompt})
+        
+        # Prevent CPU lockup
+        await asyncio.sleep(0.5)
         
         response = await client.chat(model=MODEL, messages=current_history, format="json")
         try:
@@ -138,7 +142,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
                         else:
                             observation = func(**params)
                     except TypeError as e:
-                        observation = f"Error calling tool '{tool_name}': {str(e)}. Check your parameters."
+                        observation = f"Error calling tool '{tool_name}': {str(e)}. Check your parameters. Ensure you are providing all required arguments."
                     except Exception as e:
                         observation = f"Tool execution error: {str(e)}"
             else:

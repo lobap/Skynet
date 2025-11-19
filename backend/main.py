@@ -75,6 +75,10 @@ app.mount("/_astro", StaticFiles(directory=os.path.join(frontend_dist, "_astro")
 async def read_root():
     return FileResponse(os.path.join(frontend_dist, "index.html"))
 
+@app.get("/favicon.svg")
+async def read_favicon():
+    return FileResponse(os.path.join(frontend_dist, "favicon.svg"))
+
 @app.get("/api/conversations")
 async def get_conversations(db: Session = Depends(get_db)):
     return db.query(models.Conversation).order_by(models.Conversation.created_at.desc()).all()

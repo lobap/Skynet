@@ -26,20 +26,18 @@ def load_custom_tools():
     for filename in os.listdir(CUSTOM_TOOLS_DIR):
         if filename.endswith(".py") and filename != "__init__.py":
             module_name = filename[:-3]
-            file_path = os.path.join(CUSTOM_TOOLS_DIR, filename)
             
             try:
-                spec = importlib.util.spec_from_file_location(module_name, file_path)
-                if spec and spec.loader:
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    
-                    # Inspect module for functions
-                    for name, obj in inspect.getmembers(module):
-                        if inspect.isfunction(obj) and not name.startswith("_"):
-                            # Avoid conflicts with base tools or imports
-                            # We assume any public function in the file is a tool
-                            custom_tools[name] = obj
+                # Import using full package path to support relative imports
+                full_module_name = f"services.tools.custom.{module_name}"
+                module = importlib.import_module(full_module_name)
+                
+                # Inspect module for functions
+                for name, obj in inspect.getmembers(module):
+                    if inspect.isfunction(obj) and not name.startswith("_"):
+                        # Avoid conflicts with base tools or imports
+                        # We assume any public function in the file is a tool
+                        custom_tools[name] = obj
             except Exception as e:
                 print(f"Error loading custom tool {filename}: {e}")
                 
