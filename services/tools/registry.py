@@ -59,38 +59,40 @@ def get_tools_prompt():
     prompt_lines = ["Tools:"]
     
     for name, func in tool_map.items():
-        # Generate a simple schema from the function signature
-        sig = inspect.signature(func)
-        params = {}
-        for param_name, param in sig.parameters.items():
-            # Skip 'self' or 'cls' if they somehow appear (shouldn't for module functions)
-            if param_name in ['self', 'cls']:
-                continue
+        try:
+            # Generate a simple schema from the function signature
+            sig = inspect.signature(func)
+            params = {}
+            for param_name, param in sig.parameters.items():
+                # Skip 'self' or 'cls' if they somehow appear (shouldn't for module functions)
+                if param_name in ['self', 'cls']:
+                    continue
+                
+                # Get type annotation if available, else string
+                param_type = "string"
+                if param.annotation != inspect.Parameter.empty:
+                    if param.annotation == int:
+                        param_type = "integer"
+                    elif param.annotation == bool:
+                        param_type = "boolean"
+                
+                # Check if optional
+                is_optional = param.default != inspect.Parameter.empty
+                
+                params[param_name] = f"<{param_type}>" + (" (optional)" if is_optional else "")
+                
+            # Create the JSON-like signature string
+            # e.g. execute_shell: {"command": "cmd"} - Run shell commands...
             
-            # Get type annotation if available, else string
-            param_type = "string"
-            if param.annotation != inspect.Parameter.empty:
-                if param.annotation == int:
-                    param_type = "integer"
-                elif param.annotation == bool:
-                    param_type = "boolean"
+            # Use docstring as description
+            doc = (func.__doc__ or "").strip().split('\n')[0]
             
-            # Check if optional
-            is_optional = param.default != inspect.Parameter.empty
+            # Format: tool_name: {"param": "type"} - Description
+            params_json = json.dumps(params)
             
-            params[param_name] = f"<{param_type}>" + (" (optional)" if is_optional else "")
-            
-        # Create the JSON-like signature string
-        # e.g. execute_shell: {"command": "cmd"} - Run shell commands...
-        
-        # Use docstring as description
-        doc = (func.__doc__ or "").strip().split('\n')[0]
-        
-        # Format: tool_name: {"param": "type"} - Description
-        params_json = json.dumps(params).replace('"', '') # Remove quotes for cleaner prompt look if desired, or keep them
-        # Let's keep it valid JSON-ish for the LLM to understand structure
-        params_json = json.dumps(params)
-        
-        prompt_lines.append(f"- {name}: {params_json} - {doc}")
+            prompt_lines.append(f"- {name}: {params_json} - {doc}")
+        except Exception as e:
+            print(f"Error generating prompt for tool {name}: {e}")
+            continue
         
     return "\n".join(prompt_lines)

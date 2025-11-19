@@ -43,6 +43,7 @@ async def consult_ai(model: str, system_prompt: str, user_input: str, json_mode:
             )
             return response['message']['content']
         except Exception as e:
+            print(f"AI Consultation Error (Attempt {attempt+1}/{max_retries}): {e}")
             if attempt == max_retries - 1:
                 return f"Error communicating with AI model {model}: {str(e)}"
             await asyncio.sleep(1 * (attempt + 1)) # Exponential backoff
