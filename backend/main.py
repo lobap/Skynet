@@ -37,6 +37,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def get_db():
+    db = database.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 @app.get("/api/info")
 async def get_system_info():
     return {
@@ -59,13 +66,6 @@ async def get_active_tasks():
         return []
     jobs = scheduler.scheduler.get_jobs()
     return [{"id": job.id, "name": job.name, "next_run": str(job.next_run_time)} for job in jobs]
-
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 
