@@ -14,12 +14,20 @@ from services.agent import orchestrator
 from dotenv import load_dotenv
 import json
 import socket
+from contextlib import asynccontextmanager
+from backend import scheduler
 
 load_dotenv()
 
 models.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start_scheduler()
+    yield
+    scheduler.stop_scheduler()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,9 +40,23 @@ app.add_middleware(
 @app.get("/api/info")
 async def get_system_info():
     return {
-        "model": os.getenv("OLLAMA_MODEL", "unknown"),
+        "models": {
+            "orchestrator": os.getenv("MODEL_FAST", "llama3.1:8b"),
+            "planner": os.getenv("MODEL_REASONING", "deepseek-r1:8b"),
+            "coder": os.getenv("MODEL_CODING", "qwen2.5-coder:7b")
+        },
         "hostname": socket.gethostname()
     }
+
+@app.get("/api/changelog")
+async def get_changelog(db: Session = Depends(get_db)):
+    logs = db.query(models.SystemLog).order_by(models.SystemLog.timestamp.desc()).limit(20).all()
+    return logs
+
+@app.get("/api/tasks/active")
+async def get_active_tasks():
+    jobs = scheduler.scheduler.get_jobs()
+    return [{"id": job.id, "name": job.name, "next_run": str(job.next_run_time)} for job in jobs]
 
 def get_db():
     db = database.SessionLocal()
@@ -119,7 +141,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             # AS LONG AS we don't close it prematurely. 
             # 'db' comes from Depends(get_db) which closes after the request... 
             # BUT for WebSockets, the dependency lives as long as the connection.
-            agent_task = asyncio.create_task(orchestrator.run_agent_loop(goal, websocket, db, conversation_id))
+            agent_task = asyncio.create_task(orchestrator.run_agent_loop(goal, db, websocket, conversation_id))
             
     except WebSocketDisconnect:
         if agent_task and not agent_task.done():

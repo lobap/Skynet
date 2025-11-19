@@ -4,36 +4,43 @@ import os
 import inspect
 from dotenv import load_dotenv
 from ..tools import registry
-from ..database.models import ChatLog
+from ..tools.custom.planner import manage_plan
+from ..tools.custom import git_ops
+from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
 
-MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+# Use the FAST model for routing/orchestration
+MODEL = os.getenv("MODEL_FAST", "llama3.1:8b")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
-with open(os.path.join(os.path.dirname(__file__), 'leyes.txt'), "r") as f:
-    BASE_SYSTEM_PROMPT = f.read()
+# Simplified System Prompt for the Router
+ROUTER_SYSTEM_PROMPT = """You are the Skynet Interface. 
+You do NOT write complex code or plans yourself. 
+You route tasks to your expert tools. 
+- If the user asks for a feature or complex goal, call 'manage_plan' with action='create'.
+- If they ask for a fix or code change, call 'run_safe_edit' (which uses the Coding Expert).
+- IMPORTANT: Before applying any critical code change, you SHOULD call 'review_code_changes'.
+- If they ask for simple info, use 'execute_shell' or 'browser_use'.
 
-async def run_agent_loop(goal: str, websocket, db_session: Session, conversation_id: int = None):
+Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", "parameters": {...}}} or {"thought": "reasoning", "action": {"name": "task_complete"}}
+"""
+
+async def run_agent_loop(goal: str, db_session: Session, websocket=None, conversation_id: int = None):
     client = ollama.AsyncClient(host=HOST)
     
-    # Dynamic Tool Loading
-    # We reload tools at the start of each loop to pick up any new tools created in the previous run
     TOOL_MAP = registry.get_tool_map()
     TOOLS_PROMPT = registry.get_tools_prompt()
     
-    # Combine Base Laws with Dynamic Tools
-    SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + "\n\n" + TOOLS_PROMPT
+    SYSTEM_PROMPT = ROUTER_SYSTEM_PROMPT + "\n\n" + TOOLS_PROMPT
     
-    # Build history from DB
     history = [{"role": "system", "content": SYSTEM_PROMPT}]
     
     if conversation_id:
         logs = db_session.query(ChatLog).filter(ChatLog.conversation_id == conversation_id).order_by(ChatLog.timestamp).all()
         for log in logs:
-            # Map DB roles to LLM roles
             role = "user" if log.role == "user" else "assistant"
             if log.role == "agent-thought":
                 content = json.dumps({"thought": log.content, "action": {}})
@@ -48,22 +55,71 @@ async def run_agent_loop(goal: str, websocket, db_session: Session, conversation
     recent_signatures = []
     
     for step in range(MAX_STEPS):
-        response = await client.chat(model=MODEL, messages=history, format="json")
+        # Inject Plan Status
+        plan_status = manage_plan("read")
+        reminder = f"CURRENT PLAN STATUS:\n{plan_status}\n\nFocus on the ACTIVE step. Use manage_plan to update status when done."
+        
+        current_history = history.copy()
+        current_history.append({"role": "system", "content": reminder})
+        
+        # Error Recovery Injection
+        if len(history) > 2:
+            last_msg = history[-1]["content"]
+            if any(x in last_msg for x in ["Error", "Exception", "Failed", "FAILED"]):
+                recovery_prompt = "System Alert: Previous action failed. You MUST use `attempt_fix` (for code errors) or `learn_tech` (for missing knowledge) to resolve this before asking the user. Do not apologize, just fix it."
+                current_history.append({"role": "system", "content": recovery_prompt})
+        
+        response = await client.chat(model=MODEL, messages=current_history, format="json")
         try:
             thought_action = json.loads(response['message']['content'])
         except json.JSONDecodeError:
-            await websocket.send_text(json.dumps({"role": "agent-action", "content": "Error: Invalid JSON response from LLM"}))
+            error_msg = "Error: Invalid JSON response from LLM"
+            if websocket:
+                await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
             return
             
         thought = thought_action.get('thought', '')
         action = thought_action.get('action', {})
         
-        # Send thought
-        await websocket.send_text(json.dumps({"role": "agent-thought", "content": thought}))
+        if websocket:
+            await websocket.send_text(json.dumps({"role": "agent-thought", "content": thought}))
         db_session.add(ChatLog(role="agent-thought", content=thought, conversation_id=conversation_id))
         db_session.commit()
         
         if action.get('name') == 'task_complete':
+            # Auto-commit logic
+            commit_hash = None
+            try:
+                repo = git_ops.get_repo()
+                if repo.is_dirty(untracked_files=True):
+                    # Generate commit message
+                    commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
+                    commit_resp = await client.chat(model=MODEL, messages=[{"role": "user", "content": commit_prompt}])
+                    commit_msg = commit_resp['message']['content'].strip().replace('"', '')
+                    
+                    # Execute commit
+                    result = git_ops.git_commit(commit_msg)
+                    if "Committed successfully" in result:
+                        # Extract hash from result string "[hash] message"
+                        import re
+                        match = re.search(r'\[(.*?)\]', result)
+                        if match:
+                            commit_hash = match.group(1)
+                        
+                        # Log commit action
+                        if websocket:
+                            await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
+            except Exception as e:
+                print(f"Auto-commit failed: {e}")
+
+            # Log success
+            db_session.add(SystemLog(
+                type="SUCCESS",
+                title="Task Completed",
+                description=f"Goal: {goal[:50]}... completed.",
+                commit_hash=commit_hash
+            ))
+            db_session.commit()
             break
             
         if 'name' in action and 'parameters' in action:
@@ -77,7 +133,6 @@ async def run_agent_loop(goal: str, websocket, db_session: Session, conversation
                 else:
                     func = TOOL_MAP[tool_name]
                     try:
-                        # Dynamic execution
                         if inspect.iscoroutinefunction(func):
                             observation = await func(**params)
                         else:
@@ -95,8 +150,8 @@ async def run_agent_loop(goal: str, websocket, db_session: Session, conversation
         else:
             observation = "No action specified."
             
-        # Send action result
-        await websocket.send_text(json.dumps({"role": "agent-action", "content": observation}))
+        if websocket:
+            await websocket.send_text(json.dumps({"role": "agent-action", "content": observation}))
         db_session.add(ChatLog(role="agent-action", content=observation, conversation_id=conversation_id))
         db_session.commit()
         

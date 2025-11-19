@@ -22,3 +22,13 @@ class ChatLog(Base):
     content = Column(String)
     
     conversation = relationship("Conversation", back_populates="logs")
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    type = Column(String)  # COMMIT, PLAN, ERROR, SUCCESS
+    title = Column(String)
+    description = Column(String)
+    commit_hash = Column(String, nullable=True)

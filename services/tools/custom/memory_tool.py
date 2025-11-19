@@ -1,4 +1,4 @@
-from ..memory.memory_manager import memory
+from services.memory.memory_manager import memory
 
 async def query_memory(query: str) -> str:
     """

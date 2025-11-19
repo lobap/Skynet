@@ -30,6 +30,9 @@ cd backend
 if ! pip list | grep -q fastapi; then
     echo "Instalando dependencias Python..."
     pip install -r requirements.txt
+    echo "Instalando Playwright..."
+    pip install playwright
+    playwright install --with-deps chromium
 else
     echo "Dependencias Python ya instaladas."
 fi
@@ -112,10 +115,24 @@ else
 fi
 
 if ! ollama list | grep -q "llama3.1:8b"; then
-    echo "Descargando modelo llama3.1:8b..."
+    echo "Descargando modelo llama3.1:8b (FAST)..."
     ollama pull llama3.1:8b
 else
     echo "Modelo llama3.1:8b ya disponible."
+fi
+
+if ! ollama list | grep -q "deepseek-r1:8b"; then
+    echo "Descargando modelo deepseek-r1:8b (REASONING)..."
+    ollama pull deepseek-r1:8b
+else
+    echo "Modelo deepseek-r1:8b ya disponible."
+fi
+
+if ! ollama list | grep -q "qwen2.5-coder:7b"; then
+    echo "Descargando modelo qwen2.5-coder:7b (CODING)..."
+    ollama pull qwen2.5-coder:7b
+else
+    echo "Modelo qwen2.5-coder:7b ya disponible."
 fi
 
 echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"

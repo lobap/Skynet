@@ -8,64 +8,116 @@ import '../styles/theme.css';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Skynet Terminal</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="matrix-bg text-green-400 min-h-screen flex font-mono overflow-hidden">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-black border-r border-green-900 flex flex-col z-40 hidden md:flex">
-        <div class="p-4 border-b border-green-900">
-            <button id="new-chat-btn" class="w-full py-2 px-4 border border-green-500 rounded hover:bg-green-900 transition-colors flex items-center justify-center gap-2 text-sm">
-                <span>+</span> New Chat
+<body class="h-screen flex overflow-hidden">
+    <!-- Left Sidebar: Conversations -->
+    <aside class="w-64 glass-panel flex flex-col z-20 hidden md:flex">
+        <div class="p-4 border-b border-[var(--color-border)]">
+            <div class="flex items-center gap-2 mb-4">
+                <img src="/favicon.svg" alt="Logo" class="w-8 h-8 animate-glow" />
+                <h1 class="text-lg font-bold tracking-wider text-[var(--color-accent)]">SKYNET</h1>
+            </div>
+            <button id="new-chat-btn" class="w-full py-2 px-4 rounded bg-[var(--color-accent)] text-black font-bold hover:bg-cyan-400 transition-colors flex items-center justify-center gap-2 text-sm">
+                <span>+</span> New Operation
             </button>
         </div>
+        
         <div class="flex-1 overflow-y-auto p-2 space-y-1" id="conversations-list">
-            <!-- Conversations will be loaded here -->
+            <!-- Conversations loaded here -->
         </div>
-        <div class="p-4 border-t border-green-900 text-xs text-green-700">
-            <div>MODEL: <span id="model-info">...</span></div>
-            <div>HOST: <span id="host-info">...</span></div>
+
+        <!-- System Status Panel -->
+        <div class="p-4 border-t border-[var(--color-border)] bg-black/20">
+            <h3 class="text-xs font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">System Status</h3>
+            <div class="space-y-2 text-xs font-mono">
+                <div class="flex items-center justify-between">
+                    <span class="text-[var(--color-text-muted)]">COORDINATOR</span>
+                    <div class="flex items-center gap-2">
+                        <span id="model-fast" class="text-[var(--color-accent)] truncate max-w-[80px]">...</span>
+                        <span class="status-dot status-online"></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-[var(--color-text-muted)]">ARCHITECT</span>
+                    <div class="flex items-center gap-2">
+                        <span id="model-reasoning" class="text-purple-400 truncate max-w-[80px]">...</span>
+                        <span class="status-dot status-online"></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-[var(--color-text-muted)]">ENGINEER</span>
+                    <div class="flex items-center gap-2">
+                        <span id="model-coding" class="text-yellow-400 truncate max-w-[80px]">...</span>
+                        <span class="status-dot status-online"></span>
+                    </div>
+                </div>
+            </div>
         </div>
     </aside>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col relative h-screen">
-        <!-- Header (Mobile only mostly, or simple status) -->
-        <div class="absolute top-0 left-0 right-0 p-4 z-30 pointer-events-none flex justify-between md:justify-end">
-            <button id="mobile-menu-btn" class="md:hidden pointer-events-auto text-green-500 border border-green-500 px-2 rounded">☰</button>
-            <div class="text-xs font-bold glow opacity-50">SKYNET TERMINAL</div>
-        </div>
+    <!-- Main Content: Chat -->
+    <main class="flex-1 flex flex-col relative min-w-0">
+        <!-- Header -->
+        <header class="h-14 glass-panel border-b-0 border-x-0 flex items-center justify-between px-4 z-10">
+            <div class="flex items-center gap-2 md:hidden">
+                <button id="mobile-menu-btn" class="text-[var(--color-text-muted)]">☰</button>
+            </div>
+            <div class="text-xs font-mono text-[var(--color-text-muted)]">
+                SESSION ID: <span id="session-id" class="text-[var(--color-accent)]">UNKNOWN</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="bg-tasks-indicator" class="hidden text-xs font-mono text-yellow-500 flex items-center gap-1">
+                    <span class="status-dot bg-yellow-500 animate-pulse"></span> BG WORKERS ACTIVE
+                </div>
+                <div class="text-xs font-mono text-green-500 flex items-center gap-1">
+                    <span class="status-dot status-online animate-pulse"></span> SYSTEM ONLINE
+                </div>
+            </div>
+        </header>
 
         <!-- Chat Area -->
-        <main class="flex-1 overflow-hidden flex flex-col relative">
-            <div id="messages-panel" class="flex-1 overflow-y-auto p-4 pb-32 scroll-smooth">
-                <div id="chat-box" class="flex flex-col pb-4 max-w-3xl mx-auto w-full">
-                    <!-- Messages -->
-                </div>
-            </div>
-        </main>
-
-        <!-- Input Area -->
-        <div class="w-full bg-gradient-to-t from-black via-black to-transparent p-4 pb-6 z-50">
-            <div class="max-w-3xl mx-auto relative">
-                <form id="chat-form" class="relative">
-                    <input type="text" id="prompt-input" 
-                        placeholder="Send a command..." 
-                        class="w-full p-4 pr-12 rounded-lg bg-black border border-green-800 text-green-400 placeholder-green-900 focus:outline-none focus:border-green-500 shadow-[0_0_15px_rgba(0,255,0,0.1)] transition-all"
-                        autocomplete="off"
-                    >
-                    <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-green-600 hover:text-green-400 transition-colors">
-                        ▶
-                    </button>
-                    <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-400 transition-colors hidden">
-                        ■
-                    </button>
-                </form>
-                <div class="text-center text-[10px] text-green-900 mt-2 uppercase tracking-widest">
-                    Authorized Personnel Only
-                </div>
+        <div id="messages-panel" class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
+            <div id="chat-box" class="flex flex-col max-w-4xl mx-auto w-full pb-4">
+                <!-- Messages -->
             </div>
         </div>
-    </div>
+
+        <!-- Input Area -->
+        <div class="p-4 pb-6 bg-gradient-to-t from-[var(--color-bg)] to-transparent z-20">
+            <div class="max-w-4xl mx-auto relative">
+                <form id="chat-form" class="relative group">
+                    <div class="absolute inset-0 bg-[var(--color-accent)] opacity-5 blur-lg rounded-lg group-focus-within:opacity-10 transition-opacity"></div>
+                    <input type="text" id="prompt-input" 
+                        placeholder="Enter command or objective..." 
+                        class="w-full p-4 pr-12 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] transition-all relative z-10"
+                        autocomplete="off"
+                    >
+                    <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-accent)] hover:text-white transition-colors z-20">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                    <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-500 hover:text-red-400 transition-colors z-20 hidden">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Right Sidebar: Live Activity / Changelog -->
+    <aside class="w-80 glass-panel border-l border-[var(--color-border)] flex flex-col z-20 hidden lg:flex">
+        <div class="p-4 border-b border-[var(--color-border)]">
+            <h2 class="text-sm font-bold text-[var(--color-text-main)] flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                LIVE ACTIVITY
+            </h2>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4" id="changelog-list">
+            <!-- Changelog items loaded here -->
+            <div class="text-xs text-[var(--color-text-muted)] text-center mt-10">Waiting for system events...</div>
+        </div>
+    </aside>
 
     <script>
         // State
@@ -77,20 +129,88 @@ import '../styles/theme.css';
         const chatBox = document.getElementById('chat-box');
         const messagesPanel = document.getElementById('messages-panel');
         const conversationsList = document.getElementById('conversations-list');
+        const changelogList = document.getElementById('changelog-list');
         const newChatBtn = document.getElementById('new-chat-btn');
-        const modelInfoEl = document.getElementById('model-info');
-        const hostInfoEl = document.getElementById('host-info');
         const sendBtn = document.getElementById('send-btn');
         const stopBtn = document.getElementById('stop-btn');
+        const sessionIdEl = document.getElementById('session-id');
 
-        // System Info
+        // Load System Info
         fetch('/api/info')
             .then(res => res.json())
             .then(data => {
-                if (modelInfoEl) modelInfoEl.textContent = data.model;
-                if (hostInfoEl) hostInfoEl.textContent = data.hostname;
-            })
-            .catch(err => console.error('Failed to fetch system info:', err));
+                if (data.models) {
+                    const fastEl = document.getElementById('model-fast');
+                    const reasoningEl = document.getElementById('model-reasoning');
+                    const codingEl = document.getElementById('model-coding');
+                    
+                    if (fastEl) fastEl.textContent = data.models.orchestrator;
+                    if (reasoningEl) reasoningEl.textContent = data.models.planner;
+                    if (codingEl) codingEl.textContent = data.models.coder;
+                }
+            });
+
+        // Load Changelog
+        async function loadChangelog() {
+            try {
+                const res = await fetch('/api/changelog');
+                const logs = await res.json();
+                if (changelogList && logs.length > 0) {
+                    changelogList.innerHTML = logs.map((log: any) => {
+                        let icon = '📝';
+                        let color = 'text-gray-400';
+                        if (log.type === 'SUCCESS') { icon = '✅'; color = 'text-green-400'; }
+                        if (log.type === 'ERROR') { icon = '❌'; color = 'text-red-400'; }
+                        if (log.type === 'PLAN') { icon = '🧠'; color = 'text-purple-400'; }
+                        
+                        const time = new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        
+                        let commitHtml = '';
+                        if (log.commit_hash) {
+                            commitHtml = `<div class="mt-1 text-[10px] font-mono text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-1 rounded inline-block">git:${log.commit_hash}</div>`;
+                        }
+                        
+                        return `
+                            <div class="relative pl-4 border-l border-[var(--color-border)] pb-2">
+                                <div class="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-[var(--color-bg)] border border-[var(--color-border)]"></div>
+                                <div class="text-[10px] text-[var(--color-text-muted)] mb-1 font-mono">${time}</div>
+                                <div class="text-xs font-bold ${color} mb-1 flex items-center gap-1">
+                                    <span>${icon}</span> ${log.title}
+                                </div>
+                                <div class="text-[11px] text-[var(--color-text-muted)] leading-tight">
+                                    ${log.description}
+                                </div>
+                                ${commitHtml}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load changelog:', err);
+            }
+        }
+        
+        async function checkActiveTasks() {
+            try {
+                const res = await fetch('/api/tasks/active');
+                const tasks = await res.json();
+                const indicator = document.getElementById('bg-tasks-indicator');
+                if (indicator) {
+                    if (tasks.length > 0) {
+                        indicator.classList.remove('hidden');
+                        indicator.title = tasks.map((t: any) => t.name).join('\n');
+                    } else {
+                        indicator.classList.add('hidden');
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        // Poll changelog every 5 seconds
+        setInterval(loadChangelog, 5000);
+        setInterval(checkActiveTasks, 5000);
+        loadChangelog();
+        checkActiveTasks();
 
         // Load Conversations
         async function loadConversations() {
@@ -99,8 +219,9 @@ import '../styles/theme.css';
                 const conversations = await res.json();
                 if (conversationsList) {
                     conversationsList.innerHTML = conversations.map((c: any) => `
-                        <button onclick="switchConversation(${c.id})" class="w-full text-left px-3 py-2 rounded hover:bg-green-900/30 text-xs truncate transition-colors ${c.id === currentConversationId ? 'bg-green-900/50 text-green-300' : 'text-green-600'}">
-                            ${c.title}
+                        <button onclick="switchConversation(${c.id})" class="w-full text-left px-3 py-3 rounded-lg hover:bg-white/5 text-xs truncate transition-all border border-transparent hover:border-[var(--color-border)] ${c.id === currentConversationId ? 'bg-white/10 text-[var(--color-accent)] border-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'}">
+                            <div class="font-bold mb-0.5 truncate">${c.title}</div>
+                            <div class="text-[10px] opacity-60 font-mono">${new Date(c.created_at).toLocaleDateString()}</div>
                         </button>
                     `).join('');
                 }
@@ -113,30 +234,28 @@ import '../styles/theme.css';
         // @ts-ignore
         window.switchConversation = async (id) => {
             currentConversationId = id;
-            if (chatBox) chatBox.innerHTML = ''; // Clear current messages
+            if (sessionIdEl) sessionIdEl.textContent = `OP-${id.toString().padStart(4, '0')}`;
+            if (chatBox) chatBox.innerHTML = '';
             
-            // Load messages
             try {
                 const res = await fetch(`/api/conversations/${id}`);
                 const messages = await res.json();
                 messages.forEach((msg: any) => appendMessage(msg.role, msg.content));
-                loadConversations(); // Refresh list to update active state
+                loadConversations();
             } catch (err) {
                 console.error('Failed to load messages:', err);
             }
         };
 
-        // New Chat
         newChatBtn?.addEventListener('click', () => {
             currentConversationId = null;
+            if (sessionIdEl) sessionIdEl.textContent = 'NEW OPERATION';
             if (chatBox) chatBox.innerHTML = '';
             loadConversations();
         });
 
-        // Initial Load
         loadConversations();
 
-        // WebSocket Logic
         function scrollMessages() {
             if (messagesPanel) {
                 messagesPanel.scrollTop = messagesPanel.scrollHeight;
@@ -152,16 +271,13 @@ import '../styles/theme.css';
                 if (chatBox && !document.getElementById('thinking-loader')) {
                     const loaderDiv = document.createElement('div');
                     loaderDiv.id = 'thinking-loader';
-                    loaderDiv.className = 'message-container agent';
+                    loaderDiv.className = 'flex gap-4 max-w-[85%]';
                     loaderDiv.innerHTML = `
-                        <div class="avatar agent">🤖</div>
-                        <div class="message-content">
-                            <div class="flex items-center gap-2 text-green-500">
-                                <span class="loader"></span>
-                                <span class="loader" style="animation-delay: 0.2s;"></span>
-                                <span class="loader" style="animation-delay: 0.4s;"></span>
-                                <span class="text-sm">Processing...</span>
-                            </div>
+                        <div class="w-8 h-8 rounded bg-black border border-[var(--color-border)] flex items-center justify-center text-lg shadow-lg">🤖</div>
+                        <div class="bubble-agent p-4 flex items-center gap-2">
+                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce"></span>
+                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
                         </div>
                     `;
                     chatBox.appendChild(loaderDiv);
@@ -175,57 +291,69 @@ import '../styles/theme.css';
             }
         }
         
-        /**
-         * @param {string} role
-         * @param {string} content
-         */
         function appendMessage(role: string, content: string) {
             if (!chatBox) return;
 
             const msgDiv = document.createElement('div');
-            msgDiv.className = `message-container ${role === 'user' ? 'user' : 'agent'}`;
+            msgDiv.className = `flex gap-4 max-w-[85%] ${role === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
             
-            let avatarHtml = role === 'user' ? '<div class="avatar user">👤</div>' : '<div class="avatar agent">🤖</div>';
+            let avatarHtml = role === 'user' 
+                ? '<div class="w-8 h-8 rounded bg-[var(--color-accent)] flex items-center justify-center text-lg shadow-lg text-white">👤</div>' 
+                : '<div class="w-8 h-8 rounded bg-black border border-[var(--color-border)] flex items-center justify-center text-lg shadow-lg">🤖</div>';
+            
+            let bubbleClass = role === 'user' ? 'bubble-user' : 'bubble-agent';
             let contentHtml = '';
 
-            // Parse Markdown
             // @ts-ignore
             const parsedContent = marked.parse(content);
 
             if (role === 'user') {
-                contentHtml = `<div class="markdown-content text-green-100">${parsedContent}</div>`;
+                contentHtml = `<div class="markdown-content text-sm">${parsedContent}</div>`;
             } else if (role === 'agent-thought') {
                 contentHtml = `
-                    <div class="thought-block">
-                        <div class="text-xs text-yellow-500 mb-1">THOUGHT PROCESS</div>
-                        <div class="markdown-content text-sm">${parsedContent}</div>
+                    <div class="bubble-thought">
+                        <div class="text-[10px] text-[var(--color-accent)] font-bold mb-1 uppercase tracking-wider">Reasoning Process</div>
+                        <div class="markdown-content text-xs opacity-80">${parsedContent}</div>
                     </div>`;
+                // Thoughts don't get the main bubble style, they are more subtle
+                msgDiv.className = `flex gap-4 max-w-[85%]`;
+                bubbleClass = ''; 
+                avatarHtml = '<div class="w-8 h-8"></div>'; // Spacer
             } else if (role === 'agent-action') {
-                const isError = content.includes('Error') || content.includes('Exception');
-                const borderColor = isError ? 'border-red-500' : 'border-blue-500';
+                const isError = content.includes('Error') || content.includes('Exception') || content.includes('FAILED');
+                const borderColor = isError ? 'border-red-500/50' : 'border-blue-500/50';
                 const titleColor = isError ? 'text-red-400' : 'text-blue-400';
-                const title = isError ? 'SYSTEM ERROR' : 'SYSTEM ACTION';
+                const title = isError ? 'SYSTEM ERROR' : 'TOOL EXECUTION';
                 
                 contentHtml = `
-                    <div class="action-block ${borderColor}">
-                        <details open>
-                            <summary class="text-xs ${titleColor} mb-1 cursor-pointer hover:text-white select-none flex items-center gap-2">
-                                <span>${title}</span>
-                                <span class="text-[10px] opacity-50">(Click to toggle)</span>
-                            </summary>
-                            <div class="console-output mt-2 pl-2 border-l border-green-900/50">${content}</div>
-                        </details>
+                    <div class="bg-black/40 border ${borderColor} rounded p-3 text-xs font-mono">
+                        <div class="font-bold ${titleColor} mb-2 flex items-center gap-2">
+                            ${isError ? '⚠️' : '⚡'} ${title}
+                        </div>
+                        <div class="opacity-80 whitespace-pre-wrap overflow-x-auto">${content}</div>
                     </div>`;
+                msgDiv.className = `flex gap-4 max-w-[95%]`; // Actions can be wider
+                bubbleClass = '';
+                avatarHtml = '<div class="w-8 h-8"></div>'; // Spacer
             } else {
-                contentHtml = `<div class="markdown-content">${parsedContent}</div>`;
+                contentHtml = `<div class="markdown-content text-sm">${parsedContent}</div>`;
             }
 
-            msgDiv.innerHTML = `
-                ${avatarHtml}
-                <div class="message-content">
-                    ${contentHtml}
-                </div>
-            `;
+            if (bubbleClass) {
+                msgDiv.innerHTML = `
+                    ${avatarHtml}
+                    <div class="${bubbleClass} p-4 shadow-lg">
+                        ${contentHtml}
+                    </div>
+                `;
+            } else {
+                msgDiv.innerHTML = `
+                    ${avatarHtml}
+                    <div class="w-full">
+                        ${contentHtml}
+                    </div>
+                `;
+            }
             
             chatBox.appendChild(msgDiv);
             requestAnimationFrame(scrollMessages);
@@ -236,17 +364,11 @@ import '../styles/theme.css';
             
             if (data.type === 'conversation_created') {
                 currentConversationId = data.id;
+                if (sessionIdEl) sessionIdEl.textContent = `OP-${data.id.toString().padStart(4, '0')}`;
                 loadConversations();
                 return;
             }
 
-            // If we receive a message, we might still be thinking if it's a thought/action
-            // But if it's a final answer or we are done, we stop thinking.
-            // Actually, the backend sends messages as they come.
-            // We only hide loader if we are sure we are done? 
-            // No, the loader is a placeholder for "waiting for next message".
-            // So we remove it, append message, and if it's an intermediate step, show it again.
-            
             const loader = document.getElementById('thinking-loader');
             if (loader) loader.remove();
             
@@ -255,8 +377,9 @@ import '../styles/theme.css';
             if (data.role === 'agent-thought' || data.role === 'agent-action') {
                 setThinking(true);
             } else if (data.role === 'assistant' || data.role === 'system') {
-                // Usually final message or system info
                 setThinking(false);
+                // Refresh changelog on completion
+                loadChangelog();
             }
         };
 

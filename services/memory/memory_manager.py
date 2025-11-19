@@ -3,8 +3,15 @@ import chromadb
 from chromadb.utils import embedding_functions
 import glob
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 class MemoryManager:
-    def __init__(self, persist_path="c:/Dev/Skynet/services/memory/db"):
+    def __init__(self, persist_path=None):
+        if persist_path is None:
+            persist_path = os.path.join(BASE_DIR, "services", "memory", "db")
+            
+        os.makedirs(persist_path, exist_ok=True)
+        
         self.client = chromadb.PersistentClient(path=persist_path)
         self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
         self.collection = self.client.get_or_create_collection(
@@ -12,20 +19,53 @@ class MemoryManager:
             embedding_function=self.embedding_fn
         )
 
-    def index_codebase(self, root_dirs=["c:/Dev/Skynet/backend", "c:/Dev/Skynet/services"]):
-        """Scans and indexes all code files in the specified directories."""
+    def chunk_content(self, content, file_path):
+        chunks = []
+        lines = content.split('\n')
+        
+        if file_path.endswith('.py'):
+            current_chunk = []
+            for line in lines:
+                if (line.startswith('def ') or line.startswith('class ') or line.startswith('@')) and len(current_chunk) > 0:
+                    if len('\n'.join(current_chunk)) < 50:
+                        current_chunk.append(line)
+                    else:
+                        chunks.append('\n'.join(current_chunk))
+                        current_chunk = [line]
+                else:
+                    current_chunk.append(line)
+                    
+                if len(current_chunk) > 100:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = []
+            
+            if current_chunk:
+                chunks.append('\n'.join(current_chunk))
+        else:
+            current_chunk = []
+            for line in lines:
+                current_chunk.append(line)
+                if len(current_chunk) > 50:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = []
+            if current_chunk:
+                chunks.append('\n'.join(current_chunk))
+                
+        return [c for c in chunks if c.strip()]
+
+    def index_codebase(self):
+        root_dirs = [os.path.join(BASE_DIR, "backend"), os.path.join(BASE_DIR, "services")]
         documents = []
         metadatas = []
         ids = []
         
         for root_dir in root_dirs:
-            # Recursive search for python and text files
             files = glob.glob(os.path.join(root_dir, "**", "*.py"), recursive=True)
             files.extend(glob.glob(os.path.join(root_dir, "**", "*.txt"), recursive=True))
             files.extend(glob.glob(os.path.join(root_dir, "**", "*.md"), recursive=True))
             
             for file_path in files:
-                if "venv" in file_path or "__pycache__" in file_path or ".git" in file_path:
+                if any(x in file_path for x in ["venv", "__pycache__", ".git", ".db", "node_modules"]):
                     continue
                     
                 try:
@@ -34,19 +74,17 @@ class MemoryManager:
                         if not content.strip():
                             continue
                             
-                        # Chunking could be improved, but for now we index the whole file or large chunks
-                        # For better RAG, we should split by functions/classes.
-                        # Keeping it simple: 1 file = 1 doc for now, or simple chunking.
+                        file_chunks = self.chunk_content(content, file_path)
+                        rel_path = os.path.relpath(file_path, BASE_DIR)
                         
-                        documents.append(content)
-                        metadatas.append({"source": file_path})
-                        ids.append(file_path)
+                        for i, chunk in enumerate(file_chunks):
+                            documents.append(chunk)
+                            metadatas.append({"source": rel_path, "chunk_id": i})
+                            ids.append(f"{rel_path}_{i}")
                 except Exception as e:
                     print(f"Skipping {file_path}: {e}")
 
         if documents:
-            # Upsert (update or insert)
-            # Batching might be needed for large codebases
             batch_size = 100
             for i in range(0, len(documents), batch_size):
                 end = min(i + batch_size, len(documents))
@@ -55,7 +93,30 @@ class MemoryManager:
                     metadatas=metadatas[i:end],
                     ids=ids[i:end]
                 )
-        return f"Indexed {len(documents)} files."
+        return f"Indexed {len(documents)} chunks from codebase."
+
+    def index_text(self, source: str, text: str):
+        """Indexes arbitrary text content (e.g., from documentation)."""
+        chunks = self.chunk_content(text, source)
+        documents = []
+        metadatas = []
+        ids = []
+        
+        # Sanitize source for ID
+        safe_source = "".join([c if c.isalnum() else "_" for c in source])[-50:]
+        
+        for i, chunk in enumerate(chunks):
+            documents.append(chunk)
+            metadatas.append({"source": source, "chunk_id": i, "type": "external_knowledge"})
+            ids.append(f"ext_{safe_source}_{i}")
+            
+        if documents:
+            self.collection.upsert(
+                documents=documents,
+                metadatas=metadatas,
+                ids=ids
+            )
+        return f"Indexed {len(documents)} chunks from {source}."
 
     def query(self, query_text, n_results=3):
         results = self.collection.query(
@@ -64,5 +125,4 @@ class MemoryManager:
         )
         return results
 
-# Singleton instance
 memory = MemoryManager()

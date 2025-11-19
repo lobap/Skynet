@@ -1,0 +1,50 @@
+import ollama
+import os
+import asyncio
+from dotenv import load_dotenv
+
+# Load env from backend
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
+
+HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+
+async def consult_ai(model: str, system_prompt: str, user_input: str, json_mode: bool = False) -> str:
+    """
+    Centralized AI access point.
+    
+    Args:
+        model (str): The model identifier (e.g., 'llama3.1:8b', 'deepseek-r1:8b').
+        system_prompt (str): The system instruction.
+        user_input (str): The user's query or context.
+        json_mode (bool): If True, enforces JSON output format.
+        
+    Returns:
+        str: The model's response content.
+    """
+    client = ollama.AsyncClient(host=HOST)
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_input}
+    ]
+    
+    options = {}
+    format_param = "json" if json_mode else None
+    
+    # Retry logic for robustness
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = await client.chat(
+                model=model,
+                messages=messages,
+                format=format_param,
+                options=options
+            )
+            return response['message']['content']
+        except Exception as e:
+            if attempt == max_retries - 1:
+                return f"Error communicating with AI model {model}: {str(e)}"
+            await asyncio.sleep(1 * (attempt + 1)) # Exponential backoff
+            
+    return "Error: AI consultation failed."

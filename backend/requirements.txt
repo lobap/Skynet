@@ -8,3 +8,8 @@ python-telegram-bot
 chromadb
 sentence-transformers
 playwright
+beautifulsoup4
+requests
+aiohttp
+apscheduler
+GitPython
