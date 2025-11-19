@@ -8,22 +8,35 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dir
 
 async def execute_shell(command: str) -> str:
     try:
+        # Timeout for command execution (in seconds)
+        TIMEOUT = 120
+        
         if command.startswith('sudo '):
             password = vault.get_credential('sudo_password') or os.getenv('SUDO_PASSWORD', '')
             if not password:
                 return "Error: sudo password not found in vault or .env. Use store_credential tool to set it."
             command = command.replace('sudo ', 'sudo -S ', 1)
             process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
-            stdout, stderr = await process.communicate(input=password.encode() + b'\n')
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(input=password.encode() + b'\n'), timeout=TIMEOUT)
+            except asyncio.TimeoutError:
+                process.kill()
+                return f"Error: Command timed out after {TIMEOUT} seconds."
         else:
             process = await asyncio.create_subprocess_shell(command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-            stdout, stderr = await process.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=TIMEOUT)
+            except asyncio.TimeoutError:
+                process.kill()
+                return f"Error: Command timed out after {TIMEOUT} seconds."
+                
         return stdout.decode() if process.returncode == 0 else f"Error (code {process.returncode}): {stderr.decode()}"
     except Exception as e:
         return f"Exception: {str(e)}"
 
 async def file_manager(action: str, path: str, content: str = None) -> str:
     try:
+        path = os.path.expanduser(path)
         if action == "read":
             async with aiofiles.open(path, 'r') as f:
                 return await f.read()
