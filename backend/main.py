@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+import asyncio
 from fastapi import FastAPI, WebSocket, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -70,12 +71,24 @@ async def create_conversation(db: Session = Depends(get_db)):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
-    # No initial history sent automatically, client requests it via REST or sends conversation_id
+    agent_task = None
     
     try:
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
+            
+            # Handle Stop Signal
+            if message.get("action") == "stop":
+                if agent_task and not agent_task.done():
+                    agent_task.cancel()
+                    try:
+                        await agent_task
+                    except asyncio.CancelledError:
+                        pass
+                    await websocket.send_text(json.dumps({"role": "system", "content": "Processing stopped by user."}))
+                continue
+
             goal = message.get("goal", "")
             conversation_id = message.get("conversation_id")
             
@@ -92,7 +105,23 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             db.add(models.ChatLog(role="user", content=goal, conversation_id=conversation_id))
             db.commit()
             
-            # Run agent
-            await orchestrator.run_agent_loop(goal, websocket, db, conversation_id)
+            # Cancel previous task if running (to "add instruction" behavior)
+            if agent_task and not agent_task.done():
+                agent_task.cancel()
+                try:
+                    await agent_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Run agent in background
+            # We need a new DB session for the task if we want to be safe, 
+            # but since we are in the same event loop, passing 'db' is okay 
+            # AS LONG AS we don't close it prematurely. 
+            # 'db' comes from Depends(get_db) which closes after the request... 
+            # BUT for WebSockets, the dependency lives as long as the connection.
+            agent_task = asyncio.create_task(orchestrator.run_agent_loop(goal, websocket, db, conversation_id))
+            
     except WebSocketDisconnect:
+        if agent_task and not agent_task.done():
+            agent_task.cancel()
         print("Client disconnected")

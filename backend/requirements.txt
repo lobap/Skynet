@@ -5,3 +5,6 @@ ollama
 python-dotenv
 aiofiles
 python-telegram-bot
+chromadb
+sentence-transformers
+playwright

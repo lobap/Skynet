@@ -53,8 +53,11 @@ import '../styles/theme.css';
                         class="w-full p-4 pr-12 rounded-lg bg-black border border-green-800 text-green-400 placeholder-green-900 focus:outline-none focus:border-green-500 shadow-[0_0_15px_rgba(0,255,0,0.1)] transition-all"
                         autocomplete="off"
                     >
-                    <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-green-600 hover:text-green-400 transition-colors">
+                    <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-green-600 hover:text-green-400 transition-colors">
                         ▶
+                    </button>
+                    <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-400 transition-colors hidden">
+                        ■
                     </button>
                 </form>
                 <div class="text-center text-[10px] text-green-900 mt-2 uppercase tracking-widest">
@@ -77,6 +80,8 @@ import '../styles/theme.css';
         const newChatBtn = document.getElementById('new-chat-btn');
         const modelInfoEl = document.getElementById('model-info');
         const hostInfoEl = document.getElementById('host-info');
+        const sendBtn = document.getElementById('send-btn');
+        const stopBtn = document.getElementById('stop-btn');
 
         // System Info
         fetch('/api/info')
@@ -138,32 +143,36 @@ import '../styles/theme.css';
             }
         }
         
-        function showLoader() {
-            if (isThinking || !chatBox) return;
-            isThinking = true;
-            
-            const loaderDiv = document.createElement('div');
-            loaderDiv.id = 'thinking-loader';
-            loaderDiv.className = 'message-container agent';
-            loaderDiv.innerHTML = `
-                <div class="avatar agent">🤖</div>
-                <div class="message-content">
-                    <div class="flex items-center gap-2 text-green-500">
-                        <span class="loader"></span>
-                        <span class="loader" style="animation-delay: 0.2s;"></span>
-                        <span class="loader" style="animation-delay: 0.4s;"></span>
-                        <span class="text-sm">Processing...</span>
-                    </div>
-                </div>
-            `;
-            chatBox.appendChild(loaderDiv);
-            requestAnimationFrame(scrollMessages);
-        }
-        
-        function hideLoader() {
-            isThinking = false;
-            const loader = document.getElementById('thinking-loader');
-            if (loader) loader.remove();
+        function setThinking(thinking: boolean) {
+            isThinking = thinking;
+            if (thinking) {
+                sendBtn?.classList.add('hidden');
+                stopBtn?.classList.remove('hidden');
+                
+                if (chatBox && !document.getElementById('thinking-loader')) {
+                    const loaderDiv = document.createElement('div');
+                    loaderDiv.id = 'thinking-loader';
+                    loaderDiv.className = 'message-container agent';
+                    loaderDiv.innerHTML = `
+                        <div class="avatar agent">🤖</div>
+                        <div class="message-content">
+                            <div class="flex items-center gap-2 text-green-500">
+                                <span class="loader"></span>
+                                <span class="loader" style="animation-delay: 0.2s;"></span>
+                                <span class="loader" style="animation-delay: 0.4s;"></span>
+                                <span class="text-sm">Processing...</span>
+                            </div>
+                        </div>
+                    `;
+                    chatBox.appendChild(loaderDiv);
+                    requestAnimationFrame(scrollMessages);
+                }
+            } else {
+                sendBtn?.classList.remove('hidden');
+                stopBtn?.classList.add('hidden');
+                const loader = document.getElementById('thinking-loader');
+                if (loader) loader.remove();
+            }
         }
         
         /**
@@ -199,8 +208,13 @@ import '../styles/theme.css';
                 
                 contentHtml = `
                     <div class="action-block ${borderColor}">
-                        <div class="text-xs ${titleColor} mb-1">${title}</div>
-                        <div class="console-output">${content}</div>
+                        <details open>
+                            <summary class="text-xs ${titleColor} mb-1 cursor-pointer hover:text-white select-none flex items-center gap-2">
+                                <span>${title}</span>
+                                <span class="text-[10px] opacity-50">(Click to toggle)</span>
+                            </summary>
+                            <div class="console-output mt-2 pl-2 border-l border-green-900/50">${content}</div>
+                        </details>
                     </div>`;
             } else {
                 contentHtml = `<div class="markdown-content">${parsedContent}</div>`;
@@ -226,15 +240,29 @@ import '../styles/theme.css';
                 return;
             }
 
-            hideLoader();
+            // If we receive a message, we might still be thinking if it's a thought/action
+            // But if it's a final answer or we are done, we stop thinking.
+            // Actually, the backend sends messages as they come.
+            // We only hide loader if we are sure we are done? 
+            // No, the loader is a placeholder for "waiting for next message".
+            // So we remove it, append message, and if it's an intermediate step, show it again.
+            
+            const loader = document.getElementById('thinking-loader');
+            if (loader) loader.remove();
+            
             appendMessage(data.role, data.content);
+            
             if (data.role === 'agent-thought' || data.role === 'agent-action') {
-                showLoader();
+                setThinking(true);
+            } else if (data.role === 'assistant' || data.role === 'system') {
+                // Usually final message or system info
+                setThinking(false);
             }
         };
 
         ws.onerror = function(error) {
             console.error('WebSocket error:', error);
+            setThinking(false);
         };
 
         const chatForm = document.getElementById('chat-form');
@@ -251,8 +279,13 @@ import '../styles/theme.css';
                         conversation_id: currentConversationId
                     }));
                     promptInput.value = '';
-                    showLoader();
+                    setThinking(true);
                 }
+            });
+            
+            stopBtn?.addEventListener('click', function() {
+                ws.send(JSON.stringify({ action: "stop" }));
+                setThinking(false);
             });
         }
     </script>
