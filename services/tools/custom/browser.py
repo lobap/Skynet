@@ -13,7 +13,19 @@ async def browser_use(action: str, url: str = None, selector: str = None) -> str
         try:
             browser = await p.chromium.launch()
         except Exception:
-            return "Browser launch failed. Did you run 'playwright install'?"
+            # Attempt auto-install
+            print("Browser launch failed. Attempting auto-install of chromium...")
+            try:
+                process = await asyncio.create_subprocess_shell(
+                    "playwright install chromium",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await process.communicate()
+                # Try launching again
+                browser = await p.chromium.launch()
+            except Exception as e:
+                return f"Browser launch failed. Did you run 'playwright install'? Error: {e}"
             
         page = await browser.new_page()
         
