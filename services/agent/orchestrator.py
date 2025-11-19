@@ -2,6 +2,7 @@ import ollama
 import json
 import os
 import inspect
+import asyncio
 from dotenv import load_dotenv
 from ..tools import registry
 from ..tools.custom.planner import manage_plan
