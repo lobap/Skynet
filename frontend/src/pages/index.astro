@@ -1,3 +1,4 @@
+
 ---
 import '../styles/theme.css';
 ---
@@ -7,410 +8,383 @@ import '../styles/theme.css';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skynet Terminal</title>
+    <title>SKYNET // TERMINAL</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="h-screen flex overflow-hidden">
-    <!-- Left Sidebar: Conversations -->
-    <aside class="w-64 glass-panel flex flex-col z-20 hidden md:flex">
-        <div class="p-4 border-b border-[var(--color-border)]">
-            <div class="flex items-center gap-2 mb-4">
-                <img src="/favicon.svg" alt="Logo" class="w-8 h-8 animate-glow" />
-                <h1 class="text-lg font-bold tracking-wider text-[var(--color-accent)]">SKYNET</h1>
+<body class="h-screen flex overflow-hidden selection:bg-[var(--color-accent)] selection:text-black">
+    
+    <!-- Background Grid Effect -->
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-20" style="background-image: linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px); background-size: 30px 30px;"></div>
+
+    <!-- Left Sidebar: Navigation & Status -->
+    <aside class="w-16 lg:w-64 glass-panel flex flex-col z-20 border-r border-[var(--color-border)] transition-all duration-300">
+        <!-- Logo Area -->
+        <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-[var(--color-border)]">
+            <div class="relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-secondary)] rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                <img src="/favicon.svg" alt="Logo" class="relative w-8 h-8 animate-glow" />
             </div>
-            <button id="new-chat-btn" class="w-full py-2 px-4 rounded bg-[var(--color-accent)] text-black font-bold hover:bg-cyan-400 transition-colors flex items-center justify-center gap-2 text-sm">
-                <span>+</span> New Operation
-            </button>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="conversations-list">
-            <!-- Conversations loaded here -->
+            <h1 class="hidden lg:block ml-3 text-xl font-bold tracking-[0.2em] text-[var(--color-text-main)]">SKYNET</h1>
         </div>
 
-        <!-- System Status Panel -->
-        <div class="p-4 border-t border-[var(--color-border)] bg-black/20">
-            <h3 class="text-xs font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">System Status</h3>
-            <div class="space-y-2 text-xs font-mono">
-                <div class="flex items-center justify-between">
-                    <span class="text-[var(--color-text-muted)]">COORDINATOR</span>
-                    <div class="flex items-center gap-2">
-                        <span id="model-fast" class="text-[var(--color-accent)] truncate max-w-[80px]">...</span>
-                        <span class="status-dot status-online"></span>
+        <!-- Navigation Tabs -->
+        <nav class="flex-1 py-6 flex flex-col gap-2 px-2">
+            <button onclick="switchTab('chat')" id="tab-chat" class="nav-btn active group">
+                <span class="text-xl">💬</span>
+                <span class="hidden lg:block text-sm font-bold tracking-wider">OPERATION</span>
+                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-accent)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-accent)]"></div>
+            </button>
+            <button onclick="switchTab('mission')" id="tab-mission" class="nav-btn group">
+                <span class="text-xl">🎯</span>
+                <span class="hidden lg:block text-sm font-bold tracking-wider">MISSION CONTROL</span>
+                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-secondary)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-secondary)]"></div>
+            </button>
+            <button onclick="switchTab('terminal')" id="tab-terminal" class="nav-btn group">
+                <span class="text-xl">💻</span>
+                <span class="hidden lg:block text-sm font-bold tracking-wider">TERMINAL</span>
+                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-warning)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-warning)]"></div>
+            </button>
+        </nav>
+
+        <!-- System Status Footer -->
+        <div class="p-4 border-t border-[var(--color-border)] bg-black/40 hidden lg:block">
+            <div class="text-[10px] font-mono text-[var(--color-text-muted)] mb-2 flex justify-between">
+                <span>SYSTEM STATUS</span>
+                <span class="text-[var(--color-success)]">ONLINE</span>
+            </div>
+            <div class="space-y-2 font-mono text-[10px]">
+                <div class="flex justify-between items-center">
+                    <span class="opacity-60">CPU</span>
+                    <div class="w-16 h-1 bg-[var(--color-border)] rounded overflow-hidden">
+                        <div class="h-full bg-[var(--color-accent)] w-[45%] animate-pulse"></div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-[var(--color-text-muted)]">ARCHITECT</span>
-                    <div class="flex items-center gap-2">
-                        <span id="model-reasoning" class="text-purple-400 truncate max-w-[80px]">...</span>
-                        <span class="status-dot status-online"></span>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-[var(--color-text-muted)]">ENGINEER</span>
-                    <div class="flex items-center gap-2">
-                        <span id="model-coding" class="text-yellow-400 truncate max-w-[80px]">...</span>
-                        <span class="status-dot status-online"></span>
+                <div class="flex justify-between items-center">
+                    <span class="opacity-60">MEM</span>
+                    <div class="w-16 h-1 bg-[var(--color-border)] rounded overflow-hidden">
+                        <div class="h-full bg-[var(--color-secondary)] w-[60%]"></div>
                     </div>
                 </div>
             </div>
         </div>
     </aside>
 
-    <!-- Main Content: Chat -->
-    <main class="flex-1 flex flex-col relative min-w-0">
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col relative min-w-0 bg-black/50">
+        
         <!-- Header -->
-        <header class="h-14 glass-panel border-b-0 border-x-0 flex items-center justify-between px-4 z-10">
-            <div class="flex items-center gap-2 md:hidden">
-                <button id="mobile-menu-btn" class="text-[var(--color-text-muted)]">☰</button>
-            </div>
-            <div class="text-xs font-mono text-[var(--color-text-muted)]">
-                SESSION ID: <span id="session-id" class="text-[var(--color-accent)]">UNKNOWN</span>
+        <header class="h-16 glass-panel border-b border-[var(--color-border)] flex items-center justify-between px-6 z-10">
+            <div class="flex items-center gap-4">
+                <div class="text-xs font-mono text-[var(--color-accent)] border border-[var(--color-accent-dim)] px-2 py-1 rounded bg-[var(--color-accent-dim)]">
+                    SESSION: <span id="session-id">INITIALIZING...</span>
+                </div>
             </div>
             <div class="flex items-center gap-4">
-                <div id="bg-tasks-indicator" class="hidden text-xs font-mono text-yellow-500 flex items-center gap-1">
-                    <span class="status-dot bg-yellow-500 animate-pulse"></span> BG WORKERS ACTIVE
-                </div>
-                <div class="text-xs font-mono text-green-500 flex items-center gap-1">
-                    <span class="status-dot status-online animate-pulse"></span> SYSTEM ONLINE
-                </div>
+                <button id="new-chat-btn" class="px-4 py-1.5 rounded bg-[var(--color-accent)] text-black font-bold text-xs hover:bg-white transition-colors shadow-[0_0_15px_var(--color-accent-dim)]">
+                    + NEW OP
+                </button>
             </div>
         </header>
 
-        <!-- Chat Area -->
-        <div id="messages-panel" class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
-            <div id="chat-box" class="flex flex-col max-w-4xl mx-auto w-full pb-4">
-                <!-- Messages -->
+        <!-- Views Container -->
+        <div class="flex-1 relative overflow-hidden">
+            
+            <!-- VIEW: CHAT -->
+            <div id="view-chat" class="absolute inset-0 flex flex-col transition-opacity duration-300 z-10">
+                <div id="messages-panel" class="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 scroll-smooth">
+                    <div id="chat-box" class="flex flex-col max-w-4xl mx-auto w-full pb-4">
+                        <!-- Messages injected here -->
+                        <div class="text-center mt-20 opacity-50">
+                            <div class="text-6xl mb-4">🤖</div>
+                            <div class="text-xl font-mono text-[var(--color-accent)]">SKYNET ONLINE</div>
+                            <div class="text-sm text-[var(--color-text-muted)] mt-2">Awaiting instructions...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input Area -->
+                <div class="p-4 lg:p-6 glass-panel-strong border-t border-[var(--color-border)] z-20">
+                    <div class="max-w-4xl mx-auto relative">
+                        <form id="chat-form" class="relative group">
+                            <input type="text" id="prompt-input" 
+                                placeholder="Enter command or objective..." 
+                                class="w-full p-4 pr-14 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_20px_rgba(0,243,255,0.1)] transition-all font-mono text-sm"
+                                autocomplete="off"
+                            >
+                            <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-accent)] hover:text-white transition-colors">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                            <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-error)] hover:text-white transition-colors hidden animate-pulse">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Input Area -->
-        <div class="p-4 pb-6 bg-gradient-to-t from-[var(--color-bg)] to-transparent z-20">
-            <div class="max-w-4xl mx-auto relative">
-                <form id="chat-form" class="relative group">
-                    <div class="absolute inset-0 bg-[var(--color-accent)] opacity-5 blur-lg rounded-lg group-focus-within:opacity-10 transition-opacity"></div>
-                    <input type="text" id="prompt-input" 
-                        placeholder="Enter command or objective..." 
-                        class="w-full p-4 pr-12 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] transition-all relative z-10"
-                        autocomplete="off"
-                    >
-                    <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-accent)] hover:text-white transition-colors z-20">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
-                    <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-500 hover:text-red-400 transition-colors z-20 hidden">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
-                    </button>
-                </form>
+            <!-- VIEW: MISSION CONTROL -->
+            <div id="view-mission" class="absolute inset-0 flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none z-0 bg-[var(--color-bg)]">
+                <div class="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto">
+                    <h2 class="text-2xl font-bold text-[var(--color-secondary)] mb-6 font-mono tracking-wider flex items-center gap-3">
+                        <span class="text-3xl">🎯</span> ACTIVE MISSION PLAN
+                    </h2>
+                    <div id="plan-container" class="space-y-4">
+                        <div class="p-6 border border-[var(--color-border)] rounded bg-white/5 text-center text-[var(--color-text-muted)] font-mono">
+                            NO ACTIVE PLAN DETECTED
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- VIEW: TERMINAL -->
+            <div id="view-terminal" class="absolute inset-0 flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none z-0 bg-black">
+                <div class="flex-1 p-4 font-mono text-xs overflow-y-auto" id="terminal-output">
+                    <div class="text-[var(--color-success)]">root@skynet:~$ systemctl start agent_service</div>
+                    <div class="text-[var(--color-text-muted)]">[OK] Agent service started.</div>
+                    <div class="text-[var(--color-text-muted)]">[INFO] Listening on port 8000...</div>
+                </div>
+            </div>
+
         </div>
     </main>
 
-    <!-- Right Sidebar: Live Activity / Changelog -->
-    <aside class="w-80 glass-panel border-l border-[var(--color-border)] flex flex-col z-20 hidden lg:flex">
-        <div class="p-4 border-b border-[var(--color-border)]">
-            <h2 class="text-sm font-bold text-[var(--color-text-main)] flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                LIVE ACTIVITY
-            </h2>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4" id="changelog-list">
-            <!-- Changelog items loaded here -->
-            <div class="text-xs text-[var(--color-text-muted)] text-center mt-10">Waiting for system events...</div>
-        </div>
-    </aside>
+    <style>
+        .nav-btn {
+            @apply flex items-center gap-4 p-3 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 hover:text-white transition-all relative overflow-hidden;
+        }
+        .nav-btn.active {
+            @apply bg-white/10 text-white;
+        }
+    </style>
 
     <script>
-        // State
-        let currentConversationId: number | null = null;
+        // --- STATE MANAGEMENT ---
+        let currentTab = 'chat';
+        let currentConversationId = null;
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
-        let isThinking = false;
-
-        // DOM Elements
+        
+        // --- DOM ELEMENTS ---
+        const views = {
+            chat: document.getElementById('view-chat'),
+            mission: document.getElementById('view-mission'),
+            terminal: document.getElementById('view-terminal')
+        };
+        const tabs = {
+            chat: document.getElementById('tab-chat'),
+            mission: document.getElementById('tab-mission'),
+            terminal: document.getElementById('tab-terminal')
+        };
         const chatBox = document.getElementById('chat-box');
         const messagesPanel = document.getElementById('messages-panel');
-        const conversationsList = document.getElementById('conversations-list');
-        const changelogList = document.getElementById('changelog-list');
-        const newChatBtn = document.getElementById('new-chat-btn');
+        const terminalOutput = document.getElementById('terminal-output');
+        const planContainer = document.getElementById('plan-container');
+        const sessionIdEl = document.getElementById('session-id');
         const sendBtn = document.getElementById('send-btn');
         const stopBtn = document.getElementById('stop-btn');
-        const sessionIdEl = document.getElementById('session-id');
 
-        // Load System Info
-        fetch('/api/info')
-            .then(res => res.json())
-            .then(data => {
-                if (data.models) {
-                    const fastEl = document.getElementById('model-fast');
-                    const reasoningEl = document.getElementById('model-reasoning');
-                    const codingEl = document.getElementById('model-coding');
-                    
-                    if (fastEl) fastEl.textContent = data.models.orchestrator;
-                    if (reasoningEl) reasoningEl.textContent = data.models.planner;
-                    if (codingEl) codingEl.textContent = data.models.coder;
+        // --- TAB SWITCHING ---
+        window.switchTab = (tabName) => {
+            // Update State
+            currentTab = tabName;
+            
+            // Update UI Classes
+            Object.keys(views).forEach(key => {
+                const view = views[key];
+                const tab = tabs[key];
+                
+                if (key === tabName) {
+                    view.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+                    view.classList.add('z-10');
+                    tab.classList.add('active');
+                } else {
+                    view.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+                    view.classList.remove('z-10');
+                    tab.classList.remove('active');
                 }
             });
-
-        // Load Changelog
-        async function loadChangelog() {
-            try {
-                const res = await fetch('/api/changelog');
-                const logs = await res.json();
-                if (changelogList && logs.length > 0) {
-                    changelogList.innerHTML = logs.map((log: any) => {
-                        let icon = '📝';
-                        let color = 'text-gray-400';
-                        if (log.type === 'SUCCESS') { icon = '✅'; color = 'text-green-400'; }
-                        if (log.type === 'ERROR') { icon = '❌'; color = 'text-red-400'; }
-                        if (log.type === 'PLAN') { icon = '🧠'; color = 'text-purple-400'; }
-                        
-                        const time = new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        
-                        let commitHtml = '';
-                        if (log.commit_hash) {
-                            commitHtml = `<div class="mt-1 text-[10px] font-mono text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-1 rounded inline-block">git:${log.commit_hash}</div>`;
-                        }
-                        
-                        return `
-                            <div class="relative pl-4 border-l border-[var(--color-border)] pb-2">
-                                <div class="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-[var(--color-bg)] border border-[var(--color-border)]"></div>
-                                <div class="text-[10px] text-[var(--color-text-muted)] mb-1 font-mono">${time}</div>
-                                <div class="text-xs font-bold ${color} mb-1 flex items-center gap-1">
-                                    <span>${icon}</span> ${log.title}
-                                </div>
-                                <div class="text-[11px] text-[var(--color-text-muted)] leading-tight">
-                                    ${log.description}
-                                </div>
-                                ${commitHtml}
-                            </div>
-                        `;
-                    }).join('');
-                }
-            } catch (err) {
-                console.error('Failed to load changelog:', err);
-            }
-        }
-        
-        async function checkActiveTasks() {
-            try {
-                const res = await fetch('/api/tasks/active');
-                const tasks = await res.json();
-                const indicator = document.getElementById('bg-tasks-indicator');
-                if (indicator) {
-                    if (tasks.length > 0) {
-                        indicator.classList.remove('hidden');
-                        indicator.title = tasks.map((t: any) => t.name).join('\n');
-                    } else {
-                        indicator.classList.add('hidden');
-                    }
-                }
-            } catch (e) {}
-        }
-        
-        // Poll changelog every 5 seconds
-        setInterval(loadChangelog, 5000);
-        setInterval(checkActiveTasks, 5000);
-        loadChangelog();
-        checkActiveTasks();
-
-        // Load Conversations
-        async function loadConversations() {
-            try {
-                const res = await fetch('/api/conversations');
-                const conversations = await res.json();
-                if (conversationsList) {
-                    conversationsList.innerHTML = conversations.map((c: any) => `
-                        <button onclick="switchConversation(${c.id})" class="w-full text-left px-3 py-3 rounded-lg hover:bg-white/5 text-xs truncate transition-all border border-transparent hover:border-[var(--color-border)] ${c.id === currentConversationId ? 'bg-white/10 text-[var(--color-accent)] border-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'}">
-                            <div class="font-bold mb-0.5 truncate">${c.title}</div>
-                            <div class="text-[10px] opacity-60 font-mono">${new Date(c.created_at).toLocaleDateString()}</div>
-                        </button>
-                    `).join('');
-                }
-            } catch (err) {
-                console.error('Failed to load conversations:', err);
-            }
-        }
-
-        // Switch Conversation
-        // @ts-ignore
-        window.switchConversation = async (id) => {
-            currentConversationId = id;
-            if (sessionIdEl) sessionIdEl.textContent = `OP-${id.toString().padStart(4, '0')}`;
-            if (chatBox) chatBox.innerHTML = '';
-            
-            try {
-                const res = await fetch(`/api/conversations/${id}`);
-                const messages = await res.json();
-                messages.forEach((msg: any) => appendMessage(msg.role, msg.content));
-                loadConversations();
-            } catch (err) {
-                console.error('Failed to load messages:', err);
-            }
         };
 
-        newChatBtn?.addEventListener('click', () => {
-            currentConversationId = null;
-            if (sessionIdEl) sessionIdEl.textContent = 'NEW OPERATION';
-            if (chatBox) chatBox.innerHTML = '';
-            loadConversations();
-        });
-
-        loadConversations();
-
-        function scrollMessages() {
-            if (messagesPanel) {
-                messagesPanel.scrollTop = messagesPanel.scrollHeight;
-            }
-        }
-        
-        function setThinking(thinking: boolean) {
-            isThinking = thinking;
-            if (thinking) {
-                sendBtn?.classList.add('hidden');
-                stopBtn?.classList.remove('hidden');
-                
-                if (chatBox && !document.getElementById('thinking-loader')) {
-                    const loaderDiv = document.createElement('div');
-                    loaderDiv.id = 'thinking-loader';
-                    loaderDiv.className = 'flex gap-4 max-w-[85%]';
-                    loaderDiv.innerHTML = `
-                        <div class="w-8 h-8 rounded bg-black border border-[var(--color-border)] flex items-center justify-center text-lg shadow-lg">🤖</div>
-                        <div class="bubble-agent p-4 flex items-center gap-2">
-                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce"></span>
-                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-                            <span class="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-                        </div>
-                    `;
-                    chatBox.appendChild(loaderDiv);
-                    requestAnimationFrame(scrollMessages);
-                }
-            } else {
-                sendBtn?.classList.remove('hidden');
-                stopBtn?.classList.add('hidden');
-                const loader = document.getElementById('thinking-loader');
-                if (loader) loader.remove();
-            }
-        }
-        
-        function appendMessage(role: string, content: string) {
+        // --- CHAT FUNCTIONS ---
+        function appendMessage(role, content) {
             if (!chatBox) return;
+            
+            // Clear initial placeholder if it exists
+            if (chatBox.children.length === 1 && chatBox.children[0].classList.contains('text-center')) {
+                chatBox.innerHTML = '';
+            }
 
             const msgDiv = document.createElement('div');
-            msgDiv.className = `flex gap-4 max-w-[85%] ${role === 'user' ? 'ml-auto flex-row-reverse' : ''}`;
+            const isUser = role === 'user';
             
-            let avatarHtml = role === 'user' 
-                ? '<div class="w-8 h-8 rounded bg-[var(--color-accent)] flex items-center justify-center text-lg shadow-lg text-white">👤</div>' 
-                : '<div class="w-8 h-8 rounded bg-black border border-[var(--color-border)] flex items-center justify-center text-lg shadow-lg">🤖</div>';
+            msgDiv.className = `flex gap-4 max-w-[90%] ${isUser ? 'ml-auto flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`;
             
-            let bubbleClass = role === 'user' ? 'bubble-user' : 'bubble-agent';
-            let contentHtml = '';
+            let avatar = isUser 
+                ? `<div class="w-10 h-10 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-xl shadow-[0_0_15px_var(--color-accent-dim)] text-black font-bold">👤</div>`
+                : `<div class="w-10 h-10 rounded-lg bg-black border border-[var(--color-border)] flex items-center justify-center text-xl shadow-lg">🤖</div>`;
 
-            // @ts-ignore
-            const parsedContent = marked.parse(content);
-
-            if (role === 'user') {
-                contentHtml = `<div class="markdown-content text-sm">${parsedContent}</div>`;
-            } else if (role === 'agent-thought') {
-                contentHtml = `
-                    <div class="bubble-thought">
-                        <div class="text-[10px] text-[var(--color-accent)] font-bold mb-1 uppercase tracking-wider">Reasoning Process</div>
-                        <div class="markdown-content text-xs opacity-80">${parsedContent}</div>
-                    </div>`;
-                // Thoughts don't get the main bubble style, they are more subtle
-                msgDiv.className = `flex gap-4 max-w-[85%]`;
-                bubbleClass = ''; 
-                avatarHtml = '<div class="w-8 h-8"></div>'; // Spacer
-            } else if (role === 'agent-action') {
-                const isError = content.includes('Error') || content.includes('Exception') || content.includes('FAILED');
-                const borderColor = isError ? 'border-red-500/50' : 'border-blue-500/50';
-                const titleColor = isError ? 'text-red-400' : 'text-blue-400';
-                const title = isError ? 'SYSTEM ERROR' : 'TOOL EXECUTION';
+            // Special handling for Thought Process
+            if (role === 'agent-thought') {
+                msgDiv.className = `flex gap-4 max-w-[90%] opacity-70 hover:opacity-100 transition-opacity`;
+                avatar = `<div class="w-10 h-10 flex items-center justify-center text-xl">💭</div>`;
+                content = `<div class="text-xs font-mono text-[var(--color-accent)] mb-1">REASONING_CORE</div>${content}`;
+            }
+            
+            // Special handling for Action/Tool
+            if (role === 'agent-action') {
+                const isError = content.includes('Error') || content.includes('Exception');
+                const colorClass = isError ? 'text-[var(--color-error)] border-[var(--color-error)]' : 'text-[var(--color-success)] border-[var(--color-success)]';
                 
-                contentHtml = `
-                    <div class="bg-black/40 border ${borderColor} rounded p-3 text-xs font-mono">
-                        <div class="font-bold ${titleColor} mb-2 flex items-center gap-2">
-                            ${isError ? '⚠️' : '⚡'} ${title}
-                        </div>
-                        <div class="opacity-80 whitespace-pre-wrap overflow-x-auto">${content}</div>
+                // Log to terminal as well
+                logToTerminal(content, isError ? 'ERROR' : 'INFO');
+                
+                msgDiv.className = `flex gap-4 max-w-[90%]`;
+                avatar = `<div class="w-10 h-10 flex items-center justify-center text-xl">⚡</div>`;
+                content = `
+                    <div class="font-mono text-xs border-l-2 pl-3 ${colorClass} bg-black/30 p-2 rounded">
+                        <div class="font-bold mb-1 opacity-50">TOOL EXECUTION</div>
+                        <div class="whitespace-pre-wrap overflow-x-auto">${content}</div>
                     </div>`;
-                msgDiv.className = `flex gap-4 max-w-[95%]`; // Actions can be wider
-                bubbleClass = '';
-                avatarHtml = '<div class="w-8 h-8"></div>'; // Spacer
             } else {
-                contentHtml = `<div class="markdown-content text-sm">${parsedContent}</div>`;
+                // Normal message parsing
+                // @ts-ignore
+                content = marked.parse(content);
             }
 
-            if (bubbleClass) {
-                msgDiv.innerHTML = `
-                    ${avatarHtml}
-                    <div class="${bubbleClass} p-4 shadow-lg">
-                        ${contentHtml}
-                    </div>
-                `;
-            } else {
-                msgDiv.innerHTML = `
-                    ${avatarHtml}
-                    <div class="w-full">
-                        ${contentHtml}
-                    </div>
-                `;
-            }
+            const bubbleClass = isUser ? 'bubble-user' : (role === 'agent-thought' ? 'bubble-thought' : 'bubble-agent');
+            
+            msgDiv.innerHTML = `
+                ${avatar}
+                <div class="${bubbleClass} p-4 shadow-lg text-sm leading-relaxed w-full overflow-hidden">
+                    ${content}
+                </div>
+            `;
             
             chatBox.appendChild(msgDiv);
-            requestAnimationFrame(scrollMessages);
+            messagesPanel.scrollTop = messagesPanel.scrollHeight;
         }
 
-        ws.onmessage = function(event) {
+        // --- TERMINAL FUNCTIONS ---
+        function logToTerminal(message, type = 'INFO') {
+            if (!terminalOutput) return;
+            
+            const line = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            let color = 'text-[var(--color-text-muted)]';
+            if (type === 'ERROR') color = 'text-[var(--color-error)]';
+            if (type === 'SUCCESS') color = 'text-[var(--color-success)]';
+            
+            line.className = `${color} border-b border-white/5 py-1 hover:bg-white/5 px-2`;
+            line.innerHTML = `<span class="opacity-50">[${timestamp}]</span> <span class="font-bold">[${type}]</span> ${message}`;
+            
+            terminalOutput.appendChild(line);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        // --- PLAN FUNCTIONS ---
+        function updatePlan(planText) {
+            if (!planContainer) return;
+            
+            // Simple parsing of markdown checklist
+            const lines = planText.split('\n');
+            let html = '';
+            
+            lines.forEach(line => {
+                if (line.trim().startsWith('- [ ]')) {
+                    html += `<div class="flex items-center gap-3 p-3 border border-[var(--color-border)] rounded bg-black/20 text-[var(--color-text-muted)]">
+                        <div class="w-4 h-4 border border-[var(--color-text-muted)] rounded"></div>
+                        <span>${line.replace('- [ ]', '')}</span>
+                    </div>`;
+                } else if (line.trim().startsWith('- [x]')) {
+                    html += `<div class="flex items-center gap-3 p-3 border border-[var(--color-success)]/30 rounded bg-[var(--color-success)]/5 text-[var(--color-text-main)]">
+                        <div class="w-4 h-4 bg-[var(--color-success)] rounded flex items-center justify-center text-black text-xs">✓</div>
+                        <span class="line-through opacity-50">${line.replace('- [x]', '')}</span>
+                    </div>`;
+                } else if (line.trim().startsWith('#')) {
+                    html += `<h3 class="text-[var(--color-accent)] font-bold mt-4 mb-2 font-mono uppercase tracking-wider">${line.replace(/#/g, '')}</h3>`;
+                }
+            });
+            
+            planContainer.innerHTML = html;
+        }
+
+        // --- WEBSOCKET HANDLERS ---
+        ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
             if (data.type === 'conversation_created') {
                 currentConversationId = data.id;
-                if (sessionIdEl) sessionIdEl.textContent = `OP-${data.id.toString().padStart(4, '0')}`;
-                loadConversations();
+                sessionIdEl.textContent = `OP-${data.id.toString().padStart(4, '0')}`;
                 return;
             }
-
-            const loader = document.getElementById('thinking-loader');
-            if (loader) loader.remove();
+            
+            if (data.type === 'plan_update') {
+                updatePlan(data.content);
+                // Also switch to mission tab if it's the first plan
+                if (planContainer.innerText.includes('NO ACTIVE PLAN')) {
+                    switchTab('mission');
+                }
+                return;
+            }
             
             appendMessage(data.role, data.content);
             
             if (data.role === 'agent-thought' || data.role === 'agent-action') {
                 setThinking(true);
-            } else if (data.role === 'assistant' || data.role === 'system') {
+            } else {
                 setThinking(false);
-                // Refresh changelog on completion
-                loadChangelog();
             }
         };
 
-        ws.onerror = function(error) {
-            console.error('WebSocket error:', error);
-            setThinking(false);
-        };
+        function setThinking(isThinking) {
+            if (isThinking) {
+                sendBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+            } else {
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+            }
+        }
 
+        // --- EVENT LISTENERS ---
         const chatForm = document.getElementById('chat-form');
         const promptInput = document.getElementById('prompt-input');
         
-        if (chatForm && promptInput instanceof HTMLInputElement) {
-            chatForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const goal = promptInput.value;
-                if (goal) {
-                    appendMessage('user', goal);
-                    ws.send(JSON.stringify({
-                        goal: goal,
-                        conversation_id: currentConversationId
-                    }));
-                    promptInput.value = '';
-                    setThinking(true);
-                }
-            });
-            
-            stopBtn?.addEventListener('click', function() {
-                ws.send(JSON.stringify({ action: "stop" }));
-                setThinking(false);
-            });
-        }
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const goal = promptInput.value;
+            if (goal) {
+                appendMessage('user', goal);
+                ws.send(JSON.stringify({
+                    goal: goal,
+                    conversation_id: currentConversationId
+                }));
+                promptInput.value = '';
+                setThinking(true);
+            }
+        });
+
+        document.getElementById('new-chat-btn').addEventListener('click', () => {
+            currentConversationId = null;
+            sessionIdEl.textContent = 'NEW OPERATION';
+            chatBox.innerHTML = `
+                <div class="text-center mt-20 opacity-50">
+                    <div class="text-6xl mb-4">🤖</div>
+                    <div class="text-xl font-mono text-[var(--color-accent)]">SKYNET ONLINE</div>
+                    <div class="text-sm text-[var(--color-text-muted)] mt-2">Awaiting instructions...</div>
+                </div>
+            `;
+            terminalOutput.innerHTML = '';
+            planContainer.innerHTML = `
+                <div class="p-6 border border-[var(--color-border)] rounded bg-white/5 text-center text-[var(--color-text-muted)] font-mono">
+                    NO ACTIVE PLAN DETECTED
+                </div>
+            `;
+        });
+
     </script>
 </body>
 </html>

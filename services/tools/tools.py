@@ -1,10 +1,11 @@
+
 import asyncio
 import aiofiles
 import os
-from dotenv import load_dotenv
+import re
 from . import vault
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
+from backend.config import settings
+from backend.logger import logger
 
 async def execute_shell(command: str) -> str:
     try:
@@ -12,7 +13,7 @@ async def execute_shell(command: str) -> str:
         
         async def run_proc(cmd):
             if cmd.startswith('sudo '):
-                password = vault.get_credential('sudo_password') or os.getenv('SUDO_PASSWORD', '')
+                password = vault.get_credential('sudo_password') or settings.SUDO_PASSWORD
                 if not password:
                     return None, None, "Error: sudo password not found in vault or .env. Use store_credential tool to set it."
                 cmd = cmd.replace('sudo ', 'sudo -S ', 1)
@@ -39,7 +40,6 @@ async def execute_shell(command: str) -> str:
             err_msg = stderr.decode()
             if "ModuleNotFoundError: No module named" in err_msg:
                 try:
-                    import re
                     match = re.search(r"No module named '([^']+)'", err_msg)
                     if match:
                         module_name = match.group(1)
@@ -61,6 +61,7 @@ async def execute_shell(command: str) -> str:
             
         return stdout.decode()
     except Exception as e:
+        logger.error(f"Error executing shell command: {e}")
         return f"Exception: {str(e)}"
 
 async def file_manager(action: str, path: str, content: str = None) -> str:
@@ -81,6 +82,7 @@ async def file_manager(action: str, path: str, content: str = None) -> str:
             return "\n".join(os.listdir(path))
         return "Invalid action."
     except Exception as e:
+        logger.error(f"Error in file manager: {e}")
         return f"Exception: {str(e)}"
 
 async def store_credential(key: str, value: str) -> str:
@@ -88,6 +90,7 @@ async def store_credential(key: str, value: str) -> str:
         vault.set_credential(key, value)
         return f"Credential '{key}' stored successfully in vault."
     except Exception as e:
+        logger.error(f"Error storing credential: {e}")
         return f"Exception: {str(e)}"
 
 async def get_credential(key: str) -> str:
@@ -97,4 +100,5 @@ async def get_credential(key: str) -> str:
             return f"Credential '{key}': {value}"
         return f"Credential '{key}' not found in vault."
     except Exception as e:
+        logger.error(f"Error getting credential: {e}")
         return f"Exception: {str(e)}"

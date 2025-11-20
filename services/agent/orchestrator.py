@@ -1,21 +1,16 @@
 import ollama
 import json
-import os
 import inspect
 import asyncio
-from dotenv import load_dotenv
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
-
+import traceback
+import os
 from ..tools import registry
 from ..tools.custom.planner import manage_plan
 from ..tools.custom import git_ops
 from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
-
-MODEL = os.getenv("MODEL_FAST", "qwen2.5-coder:1.5b")
-HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
-MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
+from backend.config import settings
+from backend.logger import logger
 
 ROUTER_SYSTEM_PROMPT = """You are the Skynet Interface. 
 You do NOT write complex code or plans yourself. 
@@ -31,19 +26,96 @@ Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", 
 Ensure you provide ALL required parameters for the tools as defined in the Tools list.
 """
 
+async def _get_llm_response(client, history, websocket):
+    try:
+        if websocket:
+            await websocket.send_text(json.dumps({"role": "agent-thought", "content": "Thinking..."}))
+
+        response = await asyncio.wait_for(
+            client.chat(model=settings.MODEL_FAST, messages=history, format="json"),
+            timeout=120.0
+        )
+        return response
+    except asyncio.TimeoutError:
+        error_msg = f"Error: AI Model ({settings.MODEL_FAST}) timed out after 120 seconds."
+        logger.error(error_msg)
+        if websocket:
+            await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
+        raise Exception(error_msg)
+    except Exception as e:
+        error_msg = f"CRITICAL ERROR: Could not connect to AI Model ({settings.MODEL_FAST}). Is Ollama running? Details: {str(e)}"
+        logger.error(error_msg)
+        if websocket:
+            await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
+        raise Exception(error_msg)
+
+async def _execute_tool(action, tool_map, recent_signatures):
+    if not (isinstance(action, dict) and 'name' in action and 'parameters' in action):
+        return "No action specified."
+
+    tool_name = action['name']
+    params = action['parameters']
+    signature = json.dumps({"tool": tool_name, "params": params}, sort_keys=True)
+    
+    if tool_name not in tool_map:
+        return f"Tool '{tool_name}' not found. Available tools: {list(tool_map.keys())}"
+
+    if signature in recent_signatures[-2:]:
+        return "Loop detected: you just attempted the same action. Change strategy or gather missing resources before retrying."
+    
+    func = tool_map[tool_name]
+    try:
+        if inspect.iscoroutinefunction(func):
+            observation = await func(**params)
+        else:
+            observation = func(**params)
+    except TypeError as e:
+        observation = f"Error calling tool '{tool_name}': {str(e)}. Check your parameters. Ensure you are providing all required arguments."
+    except Exception as e:
+        observation = f"Tool execution error: {str(e)}"
+    
+    recent_signatures.append(signature)
+    if len(recent_signatures) > 6:
+        recent_signatures.pop(0)
+        
+    return observation
+
+async def _handle_auto_commit(goal, client, websocket, is_chitchat):
+    commit_hash = None
+    if not is_chitchat:
+        try:
+            repo = git_ops.get_repo()
+            if repo.is_dirty(untracked_files=True):
+                commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
+                commit_resp = await client.chat(model=settings.MODEL_FAST, messages=[{"role": "user", "content": commit_prompt}])
+                commit_msg = commit_resp['message']['content'].strip().replace('"', '')
+                
+                result = git_ops.git_commit(commit_msg)
+                if "Committed successfully" in result:
+                    import re
+                    match = re.search(r'\[(.*?)\]', result)
+                    if match:
+                        commit_hash = match.group(1)
+                    
+                    if websocket:
+                        await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
+        except Exception as e:
+            logger.error(f"Auto-commit failed: {e}")
+    return commit_hash
+
 async def run_agent_loop(goal: str, db_session: Session, websocket=None, conversation_id: int = None):
     try:
         if websocket:
             await websocket.send_text(json.dumps({"role": "system", "content": "Agent starting..."}))
 
-        client = ollama.AsyncClient(host=HOST)
+        client = ollama.AsyncClient(host=settings.OLLAMA_HOST)
         
         try:
             TOOL_MAP = registry.get_tool_map()
             TOOLS_PROMPT = registry.get_tools_prompt()
         except Exception as e:
             error_msg = f"Error loading tools: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             if websocket:
                 await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
             return
@@ -70,7 +142,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
         
         is_chitchat = len(goal.split()) < 5 and not any(x in goal.lower() for x in ['fix', 'create', 'run', 'check', 'test', 'deploy'])
         
-        for step in range(MAX_STEPS):
+        for step in range(settings.MAX_AGENT_STEPS):
             if not is_chitchat:
                 try:
                     plan_status = await manage_plan("read")
@@ -92,25 +164,9 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             
             await asyncio.sleep(0.1)
             
-            if websocket:
-                await websocket.send_text(json.dumps({"role": "agent-thought", "content": "Thinking..."}))
-
             try:
-                response = await asyncio.wait_for(
-                    client.chat(model=MODEL, messages=current_history, format="json"),
-                    timeout=120.0
-                )
-            except asyncio.TimeoutError:
-                error_msg = f"Error: AI Model ({MODEL}) timed out after 120 seconds."
-                print(error_msg)
-                if websocket:
-                    await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
-                return
-            except Exception as e:
-                error_msg = f"CRITICAL ERROR: Could not connect to AI Model ({MODEL}). Is Ollama running? Details: {str(e)}"
-                print(error_msg)
-                if websocket:
-                    await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
+                response = await _get_llm_response(client, current_history, websocket)
+            except Exception:
                 return
 
             try:
@@ -124,13 +180,10 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             thought = thought_action.get('thought', '')
             action = thought_action.get('action', {})
             
-            # Defensive coding: Ensure action is a dict
             if isinstance(action, str):
                 if action == "task_complete":
                     action = {"name": "task_complete"}
                 else:
-                    # Try to interpret string action as a tool name with no params? 
-                    # Or just log it. For now, let's assume it's a malformed task_complete or just ignore.
                     action = {"name": action, "parameters": {}}
 
             if websocket:
@@ -139,26 +192,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             db_session.commit()
             
             if isinstance(action, dict) and action.get('name') == 'task_complete':
-                commit_hash = None
-                if not is_chitchat:
-                    try:
-                        repo = git_ops.get_repo()
-                        if repo.is_dirty(untracked_files=True):
-                            commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
-                            commit_resp = await client.chat(model=MODEL, messages=[{"role": "user", "content": commit_prompt}])
-                            commit_msg = commit_resp['message']['content'].strip().replace('"', '')
-                            
-                            result = git_ops.git_commit(commit_msg)
-                            if "Committed successfully" in result:
-                                import re
-                                match = re.search(r'\[(.*?)\]', result)
-                                if match:
-                                    commit_hash = match.group(1)
-                                
-                                if websocket:
-                                    await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
-                    except Exception as e:
-                        print(f"Auto-commit failed: {e}")
+                commit_hash = await _handle_auto_commit(goal, client, websocket, is_chitchat)
 
                 db_session.add(SystemLog(
                     type="SUCCESS",
@@ -169,46 +203,47 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
                 db_session.commit()
                 break
                 
-            if isinstance(action, dict) and 'name' in action and 'parameters' in action:
-                tool_name = action['name']
-                params = action['parameters']
-                signature = json.dumps({"tool": tool_name, "params": params}, sort_keys=True)
-                
-                if tool_name in TOOL_MAP:
-                    if signature in recent_signatures[-2:]:
-                        observation = "Loop detected: you just attempted the same action. Change strategy or gather missing resources before retrying."
-                    else:
-                        func = TOOL_MAP[tool_name]
-                        try:
-                            if inspect.iscoroutinefunction(func):
-                                observation = await func(**params)
-                            else:
-                                observation = func(**params)
-                        except TypeError as e:
-                            observation = f"Error calling tool '{tool_name}': {str(e)}. Check your parameters. Ensure you are providing all required arguments."
-                        except Exception as e:
-                            observation = f"Tool execution error: {str(e)}"
-                else:
-                    observation = f"Tool '{tool_name}' not found. Available tools: {list(TOOL_MAP.keys())}"
-                
-                recent_signatures.append(signature)
-                if len(recent_signatures) > 6:
-                    recent_signatures.pop(0)
-            else:
-                observation = "No action specified."
+            observation = await _execute_tool(action, TOOL_MAP, recent_signatures)
                 
             if websocket:
                 await websocket.send_text(json.dumps({"role": "agent-action", "content": observation}))
             db_session.add(ChatLog(role="agent-action", content=observation, conversation_id=conversation_id))
             db_session.commit()
-            
+
+            # Broadcast Plan Update if manage_plan was called
+            if isinstance(action, dict) and action.get('name') == 'manage_plan' and websocket:
+                try:
+                    # Calculate path to plan.json (root/plan.json)
+                    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    plan_file = os.path.join(root_dir, "plan.json")
+                    if os.path.exists(plan_file):
+                        with open(plan_file, 'r') as f:
+                            plan_data = json.load(f)
+                            tasks = plan_data.get("tasks", [])
+                            idx = plan_data.get("current_step_index", 0)
+                            plan_md = ""
+                            for i, task in enumerate(tasks):
+                                status = "[ ]"
+                                if task["status"] == "completed":
+                                    status = "[x]"
+                                elif i == idx:
+                                    status = "[ ]" 
+                                plan_md += f"- {status} {task['description']}\n"
+                            
+                            await websocket.send_text(json.dumps({
+                                "role": "system",
+                                "type": "plan_update",
+                                "content": plan_md
+                            }))
+                except Exception as e:
+                    logger.error(f"Failed to broadcast plan update: {e}")
+
             history.extend([{"role": "assistant", "content": json.dumps(thought_action)}, {"role": "user", "content": observation}])
             
             await asyncio.sleep(0.5)
-            
+
     except Exception as e:
-        import traceback
         error_trace = traceback.format_exc()
-        print(f"FATAL AGENT ERROR: {error_trace}")
+        logger.error(f"FATAL AGENT ERROR: {error_trace}")
         if websocket:
             await websocket.send_text(json.dumps({"role": "agent-action", "content": f"FATAL AGENT ERROR: {str(e)}"}))
