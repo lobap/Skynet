@@ -2,8 +2,8 @@ import os
 from ..ai_utils import consult_ai
 from .dev_tools import run_safe_edit, inspect_code
 
-MODEL_REASONING = os.getenv("MODEL_REASONING", "deepseek-r1:1.5b")
-MODEL_CODING = os.getenv("MODEL_CODING", "qwen2.5-coder:1.5b")
+MODEL_REASONING = os.getenv("MODEL_REASONING", "deepseek-r1:8b")
+MODEL_CODING = os.getenv("MODEL_CODING", "qwen2.5-coder:7b")
 
 async def attempt_fix(file_path: str, error_trace: str) -> str:
     """

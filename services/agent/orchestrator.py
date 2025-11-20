@@ -13,7 +13,7 @@ from ..tools.custom import git_ops
 from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
 
-MODEL = os.getenv("MODEL_FAST", "llama3.2")
+MODEL = os.getenv("MODEL_FAST", "qwen2.5-coder:7b")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
@@ -124,12 +124,21 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             thought = thought_action.get('thought', '')
             action = thought_action.get('action', {})
             
+            # Defensive coding: Ensure action is a dict
+            if isinstance(action, str):
+                if action == "task_complete":
+                    action = {"name": "task_complete"}
+                else:
+                    # Try to interpret string action as a tool name with no params? 
+                    # Or just log it. For now, let's assume it's a malformed task_complete or just ignore.
+                    action = {"name": action, "parameters": {}}
+
             if websocket:
                 await websocket.send_text(json.dumps({"role": "agent-thought", "content": thought}))
             db_session.add(ChatLog(role="agent-thought", content=thought, conversation_id=conversation_id))
             db_session.commit()
             
-            if action.get('name') == 'task_complete':
+            if isinstance(action, dict) and action.get('name') == 'task_complete':
                 commit_hash = None
                 if not is_chitchat:
                     try:
@@ -160,7 +169,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
                 db_session.commit()
                 break
                 
-            if 'name' in action and 'parameters' in action:
+            if isinstance(action, dict) and 'name' in action and 'parameters' in action:
                 tool_name = action['name']
                 params = action['parameters']
                 signature = json.dumps({"tool": tool_name, "params": params}, sort_keys=True)
@@ -194,6 +203,8 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             db_session.commit()
             
             history.extend([{"role": "assistant", "content": json.dumps(thought_action)}, {"role": "user", "content": observation}])
+            
+            await asyncio.sleep(0.5)
             
     except Exception as e:
         import traceback

@@ -113,25 +113,18 @@ else
     echo "Ollama ya corriendo."
 fi
 
-if ! ollama list | grep -q "llama3.2"; then
-    echo "Descargando modelo llama3.2 (FAST)..."
-    ollama pull llama3.2
+if ! ollama list | grep -q "qwen2.5-coder:7b"; then
+    echo "Descargando modelo qwen2.5-coder:7b (FAST/CODING)..."
+    ollama pull qwen2.5-coder:7b
 else
-    echo "Modelo llama3.2 ya disponible."
+    echo "Modelo qwen2.5-coder:7b ya disponible."
 fi
 
-if ! ollama list | grep -q "deepseek-r1:1.5b"; then
-    echo "Descargando modelo deepseek-r1:1.5b (REASONING)..."
-    ollama pull deepseek-r1:1.5b
+if ! ollama list | grep -q "deepseek-r1:8b"; then
+    echo "Descargando modelo deepseek-r1:8b (REASONING)..."
+    ollama pull deepseek-r1:8b
 else
-    echo "Modelo deepseek-r1:1.5b ya disponible."
-fi
-
-if ! ollama list | grep -q "qwen2.5-coder:1.5b"; then
-    echo "Descargando modelo qwen2.5-coder:1.5b (CODING)..."
-    ollama pull qwen2.5-coder:1.5b
-else
-    echo "Modelo qwen2.5-coder:1.5b ya disponible."
+    echo "Modelo deepseek-r1:8b ya disponible."
 fi
 
 echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"

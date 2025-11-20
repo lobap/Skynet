@@ -19,7 +19,7 @@ class MemoryManager:
             return
 
         if persist_path is None:
-            persist_path = os.path.join(BASE_DIR, "services", "memory", "db")
+            persist_path = os.path.join(BASE_DIR, "agente_data", "chroma")
             
         os.makedirs(persist_path, exist_ok=True)
         

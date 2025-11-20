@@ -10,7 +10,7 @@ from ..ai_utils import consult_ai
 # Current file: services/tools/custom/dev_tools.py
 # Root: ../../../../
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-MODEL_CODING = os.getenv("MODEL_CODING", "qwen2.5-coder:1.5b")
+MODEL_CODING = os.getenv("MODEL_CODING", "qwen2.5-coder:7b")
 
 async def generate_code(requirements: str, context_files: list[str] = None) -> str:
     """
