@@ -29,6 +29,7 @@ class MemoryManager:
             name="codebase_knowledge",
             embedding_function=self.embedding_fn
         )
+        print("💾 Memory Manager cargado (Modo Ligero).")
 
     def chunk_content(self, content, file_path):
         chunks = []

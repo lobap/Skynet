@@ -5,7 +5,7 @@ from ..ai_utils import consult_ai
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 PLAN_FILE = os.path.join(BASE_DIR, "plan.json")
-MODEL_REASONING = os.getenv("MODEL_REASONING", "deepseek-r1:8b")
+MODEL_REASONING = os.getenv("MODEL_REASONING", "qwen2.5-coder:7b")
 
 async def manage_plan(action: str, tasks: list[str] = None, step_index: int = None, goal: str = None) -> str:
     """
