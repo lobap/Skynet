@@ -1,5 +1,10 @@
 import os
 import sys
+from dotenv import load_dotenv
+
+# Load env vars immediately
+load_dotenv()
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import asyncio
@@ -11,13 +16,10 @@ from fastapi import WebSocketDisconnect
 from sqlalchemy.orm import Session
 from services.database import database, models
 from services.agent import orchestrator
-from dotenv import load_dotenv
 import json
 import socket
 from contextlib import asynccontextmanager
 from backend import scheduler
-
-load_dotenv()
 
 models.Base.metadata.create_all(bind=database.engine)
 

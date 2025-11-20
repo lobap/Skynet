@@ -4,16 +4,18 @@ import os
 import inspect
 import asyncio
 from dotenv import load_dotenv
+
+# Load env before imports that might use it
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
+
 from ..tools import registry
 from ..tools.custom.planner import manage_plan
 from ..tools.custom import git_ops
 from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
-
 # Use the FAST model for routing/orchestration
-MODEL = os.getenv("MODEL_FAST", "llama3.1:8b")
+MODEL = os.getenv("MODEL_FAST", "llama3.2")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
