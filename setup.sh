@@ -113,11 +113,11 @@ else
     echo "Ollama ya corriendo."
 fi
 
-if ! ollama list | grep -q "llama3.1:8b"; then
-    echo "Descargando modelo llama3.1:8b (FAST)..."
-    ollama pull llama3.1:8b
+if ! ollama list | grep -q "llama3.2"; then
+    echo "Descargando modelo llama3.2 (FAST)..."
+    ollama pull llama3.2
 else
-    echo "Modelo llama3.1:8b ya disponible."
+    echo "Modelo llama3.2 ya disponible."
 fi
 
 if ! ollama list | grep -q "deepseek-r1:8b"; then

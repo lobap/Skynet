@@ -5,7 +5,6 @@ import inspect
 import asyncio
 from dotenv import load_dotenv
 
-# Load env before imports that might use it
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend', '.env'))
 
 from ..tools import registry
@@ -14,12 +13,10 @@ from ..tools.custom import git_ops
 from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
 
-# Use the FAST model for routing/orchestration
 MODEL = os.getenv("MODEL_FAST", "llama3.2")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
-# Simplified System Prompt for the Router
 ROUTER_SYSTEM_PROMPT = """You are the Skynet Interface. 
 You do NOT write complex code or plans yourself. 
 You route tasks to your expert tools. 
@@ -71,11 +68,9 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
 
         recent_signatures = []
         
-        # Optimization: Detect if goal is likely chitchat to skip heavy planning
         is_chitchat = len(goal.split()) < 5 and not any(x in goal.lower() for x in ['fix', 'create', 'run', 'check', 'test', 'deploy'])
         
         for step in range(MAX_STEPS):
-            # Inject Plan Status (Skip for chitchat to speed up)
             if not is_chitchat:
                 try:
                     plan_status = await manage_plan("read")
@@ -89,25 +84,21 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             else:
                 current_history = history.copy()
             
-            # Error Recovery Injection
             if len(history) > 2:
                 last_msg = history[-1]["content"]
                 if any(x in last_msg for x in ["Error", "Exception", "Failed", "FAILED"]):
                     recovery_prompt = "System Alert: Previous action failed. You MUST use `attempt_fix` (for code errors) or `learn_tech` (for missing knowledge) to resolve this before asking the user. Do not apologize, just fix it."
                     current_history.append({"role": "system", "content": recovery_prompt})
             
-            # Prevent CPU lockup
-            await asyncio.sleep(0.1) # Reduced sleep for responsiveness
+            await asyncio.sleep(0.1)
             
-            # Notify user that we are thinking
             if websocket:
                 await websocket.send_text(json.dumps({"role": "agent-thought", "content": "Thinking..."}))
 
             try:
-                # Set a timeout for the chat completion to avoid hanging indefinitely
                 response = await asyncio.wait_for(
                     client.chat(model=MODEL, messages=current_history, format="json"),
-                    timeout=120.0 # 2 minutes timeout
+                    timeout=120.0
                 )
             except asyncio.TimeoutError:
                 error_msg = f"Error: AI Model ({MODEL}) timed out after 120 seconds."
@@ -139,33 +130,27 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             db_session.commit()
             
             if action.get('name') == 'task_complete':
-                # Auto-commit logic (Only if not chitchat and repo is dirty)
                 commit_hash = None
                 if not is_chitchat:
                     try:
                         repo = git_ops.get_repo()
                         if repo.is_dirty(untracked_files=True):
-                            # Generate commit message
                             commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
                             commit_resp = await client.chat(model=MODEL, messages=[{"role": "user", "content": commit_prompt}])
                             commit_msg = commit_resp['message']['content'].strip().replace('"', '')
                             
-                            # Execute commit
                             result = git_ops.git_commit(commit_msg)
                             if "Committed successfully" in result:
-                                # Extract hash from result string "[hash] message"
                                 import re
                                 match = re.search(r'\[(.*?)\]', result)
                                 if match:
                                     commit_hash = match.group(1)
                                 
-                                # Log commit action
                                 if websocket:
                                     await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
                     except Exception as e:
                         print(f"Auto-commit failed: {e}")
 
-                # Log success
                 db_session.add(SystemLog(
                     type="SUCCESS",
                     title="Task Completed",

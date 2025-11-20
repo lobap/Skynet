@@ -2,7 +2,6 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Load env vars immediately
 load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -50,7 +49,7 @@ def get_db():
 async def get_system_info():
     return {
         "models": {
-            "orchestrator": os.getenv("MODEL_FAST", "llama3.1:8b"),
+            "orchestrator": os.getenv("MODEL_FAST", "llama3.2"),
             "planner": os.getenv("MODEL_REASONING", "deepseek-r1:8b"),
             "coder": os.getenv("MODEL_CODING", "qwen2.5-coder:7b")
         },
@@ -108,7 +107,6 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             data = await websocket.receive_text()
             message = json.loads(data)
             
-            # Handle Stop Signal
             if message.get("action") == "stop":
                 if agent_task and not agent_task.done():
                     agent_task.cancel()
@@ -123,7 +121,6 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             conversation_id = message.get("conversation_id")
             
             if not conversation_id:
-                # Create new conversation if not provided
                 new_chat = models.Conversation(title=goal[:30] + "..." if len(goal) > 30 else goal)
                 db.add(new_chat)
                 db.commit()
@@ -131,11 +128,9 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 conversation_id = new_chat.id
                 await websocket.send_text(json.dumps({"type": "conversation_created", "id": conversation_id, "title": new_chat.title}))
             
-            # Save user message
             db.add(models.ChatLog(role="user", content=goal, conversation_id=conversation_id))
             db.commit()
             
-            # Cancel previous task if running (to "add instruction" behavior)
             if agent_task and not agent_task.done():
                 agent_task.cancel()
                 try:
@@ -143,12 +138,6 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 except asyncio.CancelledError:
                     pass
             
-            # Run agent in background
-            # We need a new DB session for the task if we want to be safe, 
-            # but since we are in the same event loop, passing 'db' is okay 
-            # AS LONG AS we don't close it prematurely. 
-            # 'db' comes from Depends(get_db) which closes after the request... 
-            # BUT for WebSockets, the dependency lives as long as the connection.
             agent_task = asyncio.create_task(orchestrator.run_agent_loop(goal, db, websocket, conversation_id))
             
     except WebSocketDisconnect:

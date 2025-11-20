@@ -28,7 +28,7 @@ class SystemLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    type = Column(String)  # COMMIT, PLAN, ERROR, SUCCESS
+    type = Column(String)
     title = Column(String)
     description = Column(String)
     commit_hash = Column(String, nullable=True)
