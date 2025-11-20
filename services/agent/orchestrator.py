@@ -26,7 +26,7 @@ You route tasks to your expert tools.
 - IMPORTANT: Before applying any critical code change, you SHOULD call 'review_code_changes'.
 - If they ask for simple info that requires internet access, use 'browser_use'.
 - If they ask for system info, use 'execute_shell'.
-- If the user just says hello or chats casually, respond directly without tools (use 'task_complete' with your response in the thought).
+- If the user just says hello, chats casually, or asks a question not requiring tools, respond directly using 'task_complete'.
 
 Respond in exact JSON: {"thought": "reasoning", "action": {"name": "tool_name", "parameters": {"arg1": "value1"}}} or {"thought": "reasoning", "action": {"name": "task_complete"}}
 Ensure you provide ALL required parameters for the tools as defined in the Tools list.
@@ -69,17 +69,23 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
 
         recent_signatures = []
         
+        # Optimization: Detect if goal is likely chitchat to skip heavy planning
+        is_chitchat = len(goal.split()) < 5 and not any(x in goal.lower() for x in ['fix', 'create', 'run', 'check', 'test', 'deploy'])
+        
         for step in range(MAX_STEPS):
-            # Inject Plan Status
-            try:
-                plan_status = await manage_plan("read")
-            except Exception as e:
-                plan_status = f"Error reading plan: {e}"
+            # Inject Plan Status (Skip for chitchat to speed up)
+            if not is_chitchat:
+                try:
+                    plan_status = await manage_plan("read")
+                except Exception as e:
+                    plan_status = f"Error reading plan: {e}"
 
-            reminder = f"CURRENT PLAN STATUS:\n{plan_status}\n\nFocus on the ACTIVE step. Use manage_plan to update status when done."
-            
-            current_history = history.copy()
-            current_history.append({"role": "system", "content": reminder})
+                reminder = f"CURRENT PLAN STATUS:\n{plan_status}\n\nFocus on the ACTIVE step. Use manage_plan to update status when done."
+                
+                current_history = history.copy()
+                current_history.append({"role": "system", "content": reminder})
+            else:
+                current_history = history.copy()
             
             # Error Recovery Injection
             if len(history) > 2:
@@ -89,7 +95,7 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
                     current_history.append({"role": "system", "content": recovery_prompt})
             
             # Prevent CPU lockup
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1) # Reduced sleep for responsiveness
             
             # Notify user that we are thinking
             if websocket:
@@ -131,30 +137,31 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             db_session.commit()
             
             if action.get('name') == 'task_complete':
-                # Auto-commit logic
+                # Auto-commit logic (Only if not chitchat and repo is dirty)
                 commit_hash = None
-                try:
-                    repo = git_ops.get_repo()
-                    if repo.is_dirty(untracked_files=True):
-                        # Generate commit message
-                        commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
-                        commit_resp = await client.chat(model=MODEL, messages=[{"role": "user", "content": commit_prompt}])
-                        commit_msg = commit_resp['message']['content'].strip().replace('"', '')
-                        
-                        # Execute commit
-                        result = git_ops.git_commit(commit_msg)
-                        if "Committed successfully" in result:
-                            # Extract hash from result string "[hash] message"
-                            import re
-                            match = re.search(r'\[(.*?)\]', result)
-                            if match:
-                                commit_hash = match.group(1)
+                if not is_chitchat:
+                    try:
+                        repo = git_ops.get_repo()
+                        if repo.is_dirty(untracked_files=True):
+                            # Generate commit message
+                            commit_prompt = f"Generate a concise git commit message (max 50 chars) for the following task: {goal}. Output ONLY the message."
+                            commit_resp = await client.chat(model=MODEL, messages=[{"role": "user", "content": commit_prompt}])
+                            commit_msg = commit_resp['message']['content'].strip().replace('"', '')
                             
-                            # Log commit action
-                            if websocket:
-                                await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
-                except Exception as e:
-                    print(f"Auto-commit failed: {e}")
+                            # Execute commit
+                            result = git_ops.git_commit(commit_msg)
+                            if "Committed successfully" in result:
+                                # Extract hash from result string "[hash] message"
+                                import re
+                                match = re.search(r'\[(.*?)\]', result)
+                                if match:
+                                    commit_hash = match.group(1)
+                                
+                                # Log commit action
+                                if websocket:
+                                    await websocket.send_text(json.dumps({"role": "agent-action", "content": f"Auto-Commit: {result}"}))
+                    except Exception as e:
+                        print(f"Auto-commit failed: {e}")
 
                 # Log success
                 db_session.add(SystemLog(
