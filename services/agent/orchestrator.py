@@ -91,8 +91,22 @@ async def run_agent_loop(goal: str, db_session: Session, websocket=None, convers
             # Prevent CPU lockup
             await asyncio.sleep(0.5)
             
+            # Notify user that we are thinking
+            if websocket:
+                await websocket.send_text(json.dumps({"role": "agent-thought", "content": "Thinking..."}))
+
             try:
-                response = await client.chat(model=MODEL, messages=current_history, format="json")
+                # Set a timeout for the chat completion to avoid hanging indefinitely
+                response = await asyncio.wait_for(
+                    client.chat(model=MODEL, messages=current_history, format="json"),
+                    timeout=120.0 # 2 minutes timeout
+                )
+            except asyncio.TimeoutError:
+                error_msg = f"Error: AI Model ({MODEL}) timed out after 120 seconds."
+                print(error_msg)
+                if websocket:
+                    await websocket.send_text(json.dumps({"role": "agent-action", "content": error_msg}))
+                return
             except Exception as e:
                 error_msg = f"CRITICAL ERROR: Could not connect to AI Model ({MODEL}). Is Ollama running? Details: {str(e)}"
                 print(error_msg)
