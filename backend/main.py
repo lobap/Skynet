@@ -50,8 +50,8 @@ async def get_system_info():
     return {
         "models": {
             "orchestrator": os.getenv("MODEL_FAST", "llama3.2"),
-            "planner": os.getenv("MODEL_REASONING", "deepseek-r1:8b"),
-            "coder": os.getenv("MODEL_CODING", "qwen2.5-coder:7b")
+            "planner": os.getenv("MODEL_REASONING", "deepseek-r1:1.5b"),
+            "coder": os.getenv("MODEL_CODING", "qwen2.5-coder:1.5b")
         },
         "hostname": socket.gethostname()
     }

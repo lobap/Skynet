@@ -2,7 +2,7 @@ import os
 from ..ai_utils import consult_ai
 from .dev_tools import inspect_code
 
-MODEL_REASONING = os.getenv("MODEL_REASONING", "deepseek-r1:8b")
+MODEL_REASONING = os.getenv("MODEL_REASONING", "deepseek-r1:1.5b")
 
 async def review_code_changes(file_path: str, proposed_code: str) -> str:
     """
