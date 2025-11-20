@@ -13,7 +13,7 @@ async def consult_ai(model: str, system_prompt: str, user_input: str, json_mode:
     Centralized AI access point.
     
     Args:
-        model (str): The model identifier (e.g., 'qwen2.5-coder:7b').
+        model (str): The model identifier (e.g., 'qwen2.5-coder:1.5b').
         system_prompt (str): The system instruction.
         user_input (str): The user's query or context.
         json_mode (bool): If True, enforces JSON output format.

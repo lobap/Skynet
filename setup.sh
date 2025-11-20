@@ -113,11 +113,11 @@ else
     echo "Ollama ya corriendo."
 fi
 
-if ! ollama list | grep -q "qwen2.5-coder:7b"; then
-    echo "Descargando modelo qwen2.5-coder:7b (FAST/CODING/REASONING)..."
-    ollama pull qwen2.5-coder:7b
+if ! ollama list | grep -q "qwen2.5-coder:1.5b"; then
+    echo "Descargando modelo qwen2.5-coder:1.5b (NANO ARCHITECTURE)..."
+    ollama pull qwen2.5-coder:1.5b
 else
-    echo "Modelo qwen2.5-coder:7b ya disponible."
+    echo "Modelo qwen2.5-coder:1.5b ya disponible."
 fi
 
 echo "Configuración completa. Ejecuta: ~/Skynet/run.sh"

@@ -13,7 +13,7 @@ from ..tools.custom import git_ops
 from ..database.models import ChatLog, SystemLog
 from sqlalchemy.orm import Session
 
-MODEL = os.getenv("MODEL_FAST", "qwen2.5-coder:7b")
+MODEL = os.getenv("MODEL_FAST", "qwen2.5-coder:1.5b")
 HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 MAX_STEPS = int(os.getenv("MAX_AGENT_STEPS", "10"))
 
