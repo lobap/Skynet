@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: skynet_hive_mind
+    volumes:
+      # Mount current directory for live editing and persistence
+      - .:/app
+      # Persist vector DB
+      - skynet_memory:/app/services/memory/db
+      # Avoid mounting node_modules from host to container
+      - /app/frontend/node_modules
+    ports:
+      - "8000:8000" # API
+      - "4321:4321" # Frontend
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - PYTHONUNBUFFERED=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  skynet_memory:
