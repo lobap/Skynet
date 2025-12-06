@@ -70,39 +70,14 @@ class AgentResponse(BaseModel):
 class CommandSecurity:
     """Security validation for shell commands."""
     
-    BLOCKED_PATTERNS = [
-        "rm -rf /",
-        "rm -rf ~",
-        "rm -rf .",
-        "chmod 777",
-        ":(){ :|:& };:",
-        "> /dev/sda",
-        "mkfs.",
-        "dd if=",
-        "wget.*|.*sh",
-        "curl.*|.*sh",
-        "sudo rm",
-        "sudo chmod",
-        "format c:",
-        "del /f /s /q",
-    ]
-    
-    ALLOWED_PREFIXES = [
-        "ls", "cat", "echo", "pwd", "cd", "mkdir", "touch",
-        "pip install", "pip list", "pip show",
-        "python", "node", "npm",
-        "git status", "git log", "git diff", "git add", "git commit",
-        "docker ps", "docker logs", "docker images",
-        "curl", "wget",
-        "head", "tail", "grep", "find", "wc",
-    ]
-    
     @classmethod
     def is_safe(cls, command: str) -> tuple[bool, str]:
         """Check if command is safe to execute. Returns (is_safe, reason)."""
+        from backend.config import settings
+        
         cmd_lower = command.lower().strip()
         
-        for pattern in cls.BLOCKED_PATTERNS:
+        for pattern in settings.SHELL_BLOCKED_PATTERNS:
             if pattern in cmd_lower:
                 return False, f"Blocked pattern detected: {pattern}"
         

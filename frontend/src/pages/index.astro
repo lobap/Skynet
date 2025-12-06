@@ -76,6 +76,8 @@ import Experience from '../components/3d/Experience.jsx';
 
     <script>
         let currentConversationId = null;
+        let chatHistoryOffset = 0;
+        let hasMoreHistory = false;
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
         
         const chatBox = document.getElementById('chat-box');
@@ -83,6 +85,116 @@ import Experience from '../components/3d/Experience.jsx';
         const agentConsole = document.getElementById('agent-console');
         const sessionIdEl = document.getElementById('session-id');
         const agentStatus = document.getElementById('agent-status');
+
+        // Load chat history on page init
+        async function loadChatHistory() {
+            try {
+                const response = await fetch('/api/chat/latest');
+                const data = await response.json();
+                
+                if (data.conversation && data.logs.length > 0) {
+                    currentConversationId = data.conversation.id;
+                    sessionIdEl.textContent = `OP-${data.conversation.id.toString().padStart(4, '0')}`;
+                    hasMoreHistory = data.has_more;
+                    chatHistoryOffset = data.logs.length;
+                    
+                    // Clear initial placeholder
+                    chatBox.innerHTML = '';
+                    
+                    // Add Load More button if there's more history
+                    if (hasMoreHistory) {
+                        addLoadMoreButton();
+                    }
+                    
+                    // Render messages
+                    data.logs.forEach(log => {
+                        if (log.role === 'user' || log.role === 'assistant') {
+                            appendMessage(log.role, log.content, false);
+                        }
+                    });
+                    
+                    // Scroll to bottom
+                    if (messagesPanel) {
+                        messagesPanel.scrollTop = messagesPanel.scrollHeight;
+                    }
+                    
+                    // Log to console
+                    if (agentConsole) {
+                        const div = document.createElement('div');
+                        div.className = 'text-emerald-400 italic';
+                        div.innerText = `✓ Loaded ${data.logs.length} messages from memory`;
+                        agentConsole.appendChild(div);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load chat history:', error);
+            }
+        }
+        
+        async function loadMoreHistory() {
+            if (!currentConversationId || !hasMoreHistory) return;
+            
+            try {
+                const response = await fetch(`/api/conversations/${currentConversationId}/logs?limit=50&offset=${chatHistoryOffset}`);
+                const data = await response.json();
+                
+                hasMoreHistory = data.has_more;
+                chatHistoryOffset += data.logs.length;
+                
+                // Remove old Load More button
+                const oldBtn = document.getElementById('load-more-btn');
+                if (oldBtn) oldBtn.remove();
+                
+                // Add new Load More button if needed
+                if (hasMoreHistory) {
+                    addLoadMoreButton();
+                }
+                
+                // Prepend older messages (in reverse order since we're adding to top)
+                const firstChild = chatBox.firstChild;
+                data.logs.reverse().forEach(log => {
+                    if (log.role === 'user' || log.role === 'assistant') {
+                        const msgDiv = createMessageElement(log.role, log.content);
+                        if (firstChild) {
+                            chatBox.insertBefore(msgDiv, firstChild.nextSibling);
+                        } else {
+                            chatBox.appendChild(msgDiv);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load more history:', error);
+            }
+        }
+        
+        function addLoadMoreButton() {
+            const btn = document.createElement('button');
+            btn.id = 'load-more-btn';
+            btn.className = 'w-full py-2 text-xs text-indigo-400 hover:text-indigo-300 font-mono border border-dashed border-indigo-500/30 rounded-lg mb-4 hover:bg-indigo-500/10 transition-all';
+            btn.innerText = '↑ Load older messages';
+            btn.onclick = loadMoreHistory;
+            chatBox.insertBefore(btn, chatBox.firstChild);
+        }
+        
+        function createMessageElement(role, content) {
+            const msgDiv = document.createElement('div');
+            const isUser = role === 'user';
+            msgDiv.className = `flex gap-3 max-w-[90%] ${isUser ? 'ml-auto flex-row-reverse' : ''} mb-4`;
+            
+            const bubbleClass = isUser 
+                ? 'bg-indigo-600/90 text-white shadow-glow-indigo rounded-2xl rounded-tr-sm' 
+                : 'bg-black/60 border border-slate-700/50 text-slate-200 rounded-2xl rounded-tl-sm backdrop-blur-sm';
+
+            if (typeof marked !== 'undefined' && role !== 'user') {
+                content = marked.parse(content);
+            }
+
+            msgDiv.innerHTML = `<div class="${bubbleClass} px-5 py-3 text-sm leading-relaxed shadow-lg backdrop-blur-sm">${content}</div>`;
+            return msgDiv;
+        }
+        
+        // Load history on page load
+        loadChatHistory();
 
         function appendMessage(role, content) {
             if (!chatBox) return;

@@ -8,6 +8,7 @@ except ImportError:
     MemoryJobStore = None
 
 import logging
+from backend.logger import logger
 
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.WARNING)
@@ -18,12 +19,13 @@ scheduler = AsyncIOScheduler(jobstores={'default': MemoryJobStore()}) if SCHEDUL
 def start_scheduler():
     if scheduler and not scheduler.running:
         scheduler.start()
-        print("APScheduler started.")
+        logger.info("APScheduler started.")
     elif not scheduler:
-        print("APScheduler not available (module missing).")
+        logger.warning("APScheduler not available (module missing).")
 
 
 def stop_scheduler():
     if scheduler and scheduler.running:
         scheduler.shutdown()
-        print("APScheduler stopped.")
+        logger.info("APScheduler stopped.")
+

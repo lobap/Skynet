@@ -7,6 +7,7 @@ services:
     volumes:
       - ..:/app
       - skynet_memory:/app/backend/agente_data/chroma
+      - pip-cache:/root/.cache/pip
       - /app/frontend/node_modules
       - ./entrypoint.sh:/usr/local/bin/entrypoint.sh
     ports:
@@ -24,3 +25,4 @@ services:
 
 volumes:
   skynet_memory:
+  pip-cache:

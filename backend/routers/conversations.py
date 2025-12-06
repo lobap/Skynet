@@ -16,7 +16,45 @@ async def get_conversations(db: Session = Depends(get_db)):
 @router.get("/api/conversations/{conversation_id}")
 async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     logs = db.query(models.ChatLog).filter(models.ChatLog.conversation_id == conversation_id).order_by(models.ChatLog.timestamp).all()
-    return [{"role": log.role, "content": log.content} for log in logs]
+    return [{"role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in logs]
+
+@router.get("/api/conversations/{conversation_id}/logs")
+async def get_conversation_logs(
+    conversation_id: int, 
+    limit: int = 50, 
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Paginated chat logs for on-demand loading"""
+    total = db.query(models.ChatLog).filter(models.ChatLog.conversation_id == conversation_id).count()
+    logs = db.query(models.ChatLog).filter(
+        models.ChatLog.conversation_id == conversation_id
+    ).order_by(models.ChatLog.timestamp.desc()).offset(offset).limit(limit).all()
+    
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + limit < total,
+        "logs": [{"id": log.id, "role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in reversed(logs)]
+    }
+
+@router.get("/api/chat/latest")
+async def get_latest_conversation(db: Session = Depends(get_db)):
+    """Get latest conversation with recent logs"""
+    conv = db.query(models.Conversation).order_by(models.Conversation.created_at.desc()).first()
+    if not conv:
+        return {"conversation": None, "logs": []}
+    
+    logs = db.query(models.ChatLog).filter(
+        models.ChatLog.conversation_id == conv.id
+    ).order_by(models.ChatLog.timestamp.desc()).limit(50).all()
+    
+    return {
+        "conversation": {"id": conv.id, "title": conv.title, "created_at": conv.created_at.isoformat()},
+        "logs": [{"id": log.id, "role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in reversed(logs)],
+        "has_more": len(logs) == 50
+    }
 
 @router.post("/api/conversations")
 async def create_conversation(db: Session = Depends(get_db)):

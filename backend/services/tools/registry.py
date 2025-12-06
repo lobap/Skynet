@@ -4,6 +4,7 @@ import importlib.util
 import inspect
 import json
 from . import tools
+from backend.logger import logger
 
 BASE_TOOLS = {
     "execute_shell": tools.execute_shell,
@@ -63,7 +64,7 @@ def load_custom_tools():
                     if inspect.isfunction(obj) and not name.startswith("_"):
                         custom_tools[name] = obj
             except Exception as e:
-                print(f"Error loading custom tool {filename}: {e}")
+                logger.debug(f"Error loading custom tool {filename}: {e}")
     return custom_tools
 
 def get_tool_map():
@@ -104,7 +105,7 @@ def get_tools_prompt():
             
             prompt_lines.append(f"- {name}: {params_json} - {doc}")
         except Exception as e:
-            print(f"Error generating prompt for tool {name}: {e}")
+            logger.debug(f"Error generating prompt for tool {name}: {e}")
             continue
         
     return "\n".join(prompt_lines)

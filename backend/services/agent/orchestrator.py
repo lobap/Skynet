@@ -17,9 +17,10 @@ from .models import AgentResponse
 
 
 class Agent:
-    MAX_CONSECUTIVE_FAILURES = 3
-    MAX_CONSECUTIVE_LOOPS = 2
-    SIGNATURE_HISTORY_SIZE = 6
+    # Use centralized settings
+    MAX_CONSECUTIVE_FAILURES = settings.MAX_CONSECUTIVE_FAILURES
+    MAX_CONSECUTIVE_LOOPS = settings.MAX_CONSECUTIVE_LOOPS
+    SIGNATURE_HISTORY_SIZE = settings.SIGNATURE_HISTORY_SIZE
     
     def __init__(self, db_session: Session, websocket=None, conversation_id: int = None):
         self.db_session = db_session
@@ -259,8 +260,18 @@ class Agent:
                 self.consecutive_plain_replies = 0
                 observation = await self._execute_tool(action)
                 
+                # FORCE STOP: Check for critical loop/failure signals
+                if observation and ("FORCE_STOP" in str(observation) or "CRITICAL" in str(observation)):
+                    await self._log("assistant", "No puedo continuar con esta tarea. Por favor, reformula tu solicitud o proporciona más contexto.")
+                    return
+                
+                # Check consecutive loops threshold
+                if self.consecutive_loops > self.MAX_CONSECUTIVE_LOOPS:
+                    await self._log("assistant", "He detectado un bucle repetitivo. Detengo para evitar ciclos infinitos. Por favor, intenta con una solicitud diferente.")
+                    return
+                
                 # Count failures
-                if observation and any(x in str(observation) for x in ["Error", "CRITICAL", "Failed", "does not exist"]):
+                if observation and any(x in str(observation) for x in ["Error", "CRITICAL", "Failed", "does not exist", "Loop detected"]):
                     total_failures += 1
                 
                 tool_name = action.get('name')
@@ -282,7 +293,7 @@ class Agent:
                 await self._broadcast_plan_update()
 
             self.history.extend([
-                {"role": "assistant", "content": json.dumps(thought_action)},
+                {"role": "assistant", "content": json.dumps({"thought": thought, "action": action})},
                 {"role": "user", "content": str(observation)}
             ])
             

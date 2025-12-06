@@ -1,4 +1,5 @@
 import os
+from typing import List, Dict, Any, Optional
 try:
     import chromadb
     from chromadb.utils import embedding_functions
@@ -8,18 +9,20 @@ except ImportError:
     chromadb = None
 
 import glob
+from backend.config import settings
+from backend.logger import logger
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class MemoryManager:
-    def __init__(self, persist_path=None):
+    def __init__(self, persist_path: Optional[str] = None):
         self.collection = None
         if not CHROMA_AVAILABLE:
-            print("Warning: ChromaDB not installed. Memory features disabled.")
+            logger.warning("ChromaDB not installed. Memory features disabled.")
             return
 
         if persist_path is None:
-            persist_path = os.path.join(BASE_DIR, "agente_data", "chroma")
+            persist_path = settings.MEMORY_INDEX_PATH
             
         os.makedirs(persist_path, exist_ok=True)
         
@@ -29,7 +32,7 @@ class MemoryManager:
             name="codebase_knowledge",
             embedding_function=self.embedding_fn
         )
-        print("💾 Memory Manager cargado (Modo Ligero).")
+        logger.info("💾 Memory Manager loaded (Light Mode).")
 
     def chunk_content(self, content, file_path):
         chunks = []
@@ -97,7 +100,7 @@ class MemoryManager:
                             metadatas.append({"source": rel_path, "chunk_id": i})
                             ids.append(f"{rel_path}_{i}")
                 except Exception as e:
-                    print(f"Skipping {file_path}: {e}")
+                    logger.debug(f"Skipping {file_path}: {e}")
 
         if documents:
             batch_size = 100

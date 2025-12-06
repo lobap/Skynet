@@ -1,5 +1,6 @@
 import asyncio
 import os
+from backend.logger import logger
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -14,7 +15,7 @@ async def browser_use(action: str = "navigate", url: str = None, selector: str =
             browser = await p.chromium.launch()
         except Exception:
             # Attempt auto-install
-            print("Browser launch failed. Attempting auto-install of chromium...")
+            logger.warning("Browser launch failed. Attempting auto-install of chromium...")
             try:
                 process = await asyncio.create_subprocess_shell(
                     "playwright install chromium",
