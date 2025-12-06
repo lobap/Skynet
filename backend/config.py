@@ -7,13 +7,13 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     
-    MODEL_FAST: str = "qwen2.5-coder:1.5b"
-    MODEL_REASONING: str = "qwen2.5-coder:1.5b"
-    MODEL_CODING: str = "qwen2.5-coder:1.5b"
+    MODEL_FAST: str = "qwen2.5-coder:7b"
+    MODEL_REASONING: str = "qwen2.5-coder:7b"
+    MODEL_CODING: str = "qwen2.5-coder:7b"
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
     MAX_AGENT_STEPS: int = 10
     
-    DATABASE_URL: str = "sqlite:///./services/database/agente.db"
+    DATABASE_URL: str = "sqlite:///./backend/services/database/agente.db"
     
     SUDO_PASSWORD: str = ""
     

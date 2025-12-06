@@ -1,7 +1,7 @@
 import socket
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from services.database import models
+from backend.services.database import models
 from backend import scheduler
 from backend.dependencies import get_db
 from backend.config import settings

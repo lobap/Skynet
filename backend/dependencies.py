@@ -1,4 +1,4 @@
-from services.database import database
+from backend.services.database import database
 
 def get_db():
     db = database.SessionLocal()

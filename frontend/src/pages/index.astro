@@ -1,6 +1,8 @@
-
 ---
 import '../styles/theme.css';
+import ChatInterface from '../components/ChatInterface.astro';
+import Terminal from '../components/Terminal.astro';
+import Experience from '../components/3d/Experience.jsx';
 ---
 
 <!DOCTYPE html>
@@ -15,304 +17,144 @@ import '../styles/theme.css';
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="h-screen flex overflow-hidden selection:bg-[var(--color-accent)] selection:text-black">
+<body class="h-screen w-screen overflow-hidden selection:bg-indigo-500 selection:text-white bg-[#050505] text-slate-200 font-sans relative">
     
-    <!-- Background Grid Effect -->
-    <div class="fixed inset-0 pointer-events-none z-0 opacity-20" style="background-image: linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px); background-size: 30px 30px;"></div>
+    <!-- CENTER: 3D Scene (Background, Z-0) -->
+    <div class="absolute inset-0 z-0">
+        <Experience client:only="react" />
+    </div>
 
-    <!-- Left Sidebar: Navigation & Status -->
-    <aside class="w-16 lg:w-64 glass-panel flex flex-col z-20 border-r border-[var(--color-border)] transition-all duration-300">
-        <!-- Logo Area -->
-        <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-[var(--color-border)]">
-            <div class="relative group">
-                <div class="absolute -inset-1 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-secondary)] rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                <img src="/favicon.svg" alt="Logo" class="relative w-8 h-8 animate-glow" />
-            </div>
-            <h1 class="hidden lg:block ml-3 text-xl font-bold tracking-[0.2em] text-[var(--color-text-main)]">SKYNET</h1>
-        </div>
-
-        <!-- Navigation Tabs -->
-        <nav class="flex-1 py-6 flex flex-col gap-2 px-2">
-            <button onclick="switchTab('chat')" id="tab-chat" class="nav-btn active group">
-                <span class="text-xl">💬</span>
-                <span class="hidden lg:block text-sm font-bold tracking-wider">OPERATION</span>
-                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-accent)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-accent)]"></div>
-            </button>
-            <button onclick="switchTab('mission')" id="tab-mission" class="nav-btn group">
-                <span class="text-xl">🎯</span>
-                <span class="hidden lg:block text-sm font-bold tracking-wider">MISSION CONTROL</span>
-                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-secondary)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-secondary)]"></div>
-            </button>
-            <button onclick="switchTab('terminal')" id="tab-terminal" class="nav-btn group">
-                <span class="text-xl">💻</span>
-                <span class="hidden lg:block text-sm font-bold tracking-wider">TERMINAL</span>
-                <div class="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-warning)] opacity-0 group-[.active]:opacity-100 transition-opacity shadow-[0_0_10px_var(--color-warning)]"></div>
-            </button>
-        </nav>
-
-        <!-- System Status Footer -->
-        <div class="p-4 border-t border-[var(--color-border)] bg-black/40 hidden lg:block">
-            <div class="text-[10px] font-mono text-[var(--color-text-muted)] mb-2 flex justify-between">
-                <span>SYSTEM STATUS</span>
-                <span class="text-[var(--color-success)]">ONLINE</span>
-            </div>
-            <div class="space-y-2 font-mono text-[10px]">
-                <div class="flex justify-between items-center">
-                    <span class="opacity-60">CPU</span>
-                    <div class="w-16 h-1 bg-[var(--color-border)] rounded overflow-hidden">
-                        <div class="h-full bg-[var(--color-accent)] w-[45%] animate-pulse"></div>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="opacity-60">MEM</span>
-                    <div class="w-16 h-1 bg-[var(--color-border)] rounded overflow-hidden">
-                        <div class="h-full bg-[var(--color-secondary)] w-[60%]"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col relative min-w-0 bg-black/50">
+    <main class="absolute inset-0 z-10 flex w-full h-full pointer-events-none">
         
-        <!-- Header -->
-        <header class="h-16 glass-panel border-b border-[var(--color-border)] flex items-center justify-between px-6 z-10">
-            <div class="flex items-center gap-4">
-                <div class="text-xs font-mono text-[var(--color-accent)] border border-[var(--color-accent-dim)] px-2 py-1 rounded bg-[var(--color-accent-dim)]">
-                    SESSION: <span id="session-id">INITIALIZING...</span>
+        <!-- LEFT COLUMN: Chat Interface (30%) -->
+        <div class="w-[30%] h-full pointer-events-auto flex flex-col p-6 backdrop-blur-3xl bg-black/40 border-r border-white/5 shadow-2xl relative">
+            <header class="flex-none mb-6">
+                <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+                    <div class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                    <span class="font-mono text-xs text-indigo-200/80 tracking-widest font-bold">SKYNET // CHAT</span>
                 </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <button id="new-chat-btn" class="px-4 py-1.5 rounded bg-[var(--color-accent)] text-black font-bold text-xs hover:bg-white transition-colors shadow-[0_0_15px_var(--color-accent-dim)]">
-                    + NEW OP
-                </button>
-            </div>
-        </header>
-
-        <!-- Views Container -->
-        <div class="flex-1 relative overflow-hidden">
+            </header>
             
-            <!-- VIEW: CHAT -->
-            <div id="view-chat" class="absolute inset-0 flex flex-col transition-opacity duration-300 z-10">
-                <div id="messages-panel" class="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 scroll-smooth">
-                    <div id="chat-box" class="flex flex-col max-w-4xl mx-auto w-full pb-4">
-                        <!-- Messages injected here -->
-                        <div class="text-center mt-20 opacity-50">
-                            <div class="text-6xl mb-4">🤖</div>
-                            <div class="text-xl font-mono text-[var(--color-accent)]">SKYNET ONLINE</div>
-                            <div class="text-sm text-[var(--color-text-muted)] mt-2">Awaiting instructions...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Input Area -->
-                <div class="p-4 lg:p-6 glass-panel-strong border-t border-[var(--color-border)] z-20">
-                    <div class="max-w-4xl mx-auto relative">
-                        <form id="chat-form" class="relative group">
-                            <input type="text" id="prompt-input" 
-                                placeholder="Enter command or objective..." 
-                                class="w-full p-4 pr-14 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:shadow-[0_0_20px_rgba(0,243,255,0.1)] transition-all font-mono text-sm"
-                                autocomplete="off"
-                            >
-                            <button type="submit" id="send-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-accent)] hover:text-white transition-colors">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            </button>
-                            <button type="button" id="stop-btn" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-error)] hover:text-white transition-colors hidden animate-pulse">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
-                            </button>
-                        </form>
-                    </div>
-                </div>
+            <div class="flex-1 min-h-0">
+                 <ChatInterface />
             </div>
-
-            <!-- VIEW: MISSION CONTROL -->
-            <div id="view-mission" class="absolute inset-0 flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none z-0 bg-[var(--color-bg)]">
-                <div class="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto">
-                    <h2 class="text-2xl font-bold text-[var(--color-secondary)] mb-6 font-mono tracking-wider flex items-center gap-3">
-                        <span class="text-3xl">🎯</span> ACTIVE MISSION PLAN
-                    </h2>
-                    <div id="plan-container" class="space-y-4">
-                        <div class="p-6 border border-[var(--color-border)] rounded bg-white/5 text-center text-[var(--color-text-muted)] font-mono">
-                            NO ACTIVE PLAN DETECTED
-                        </div>
-                    </div>
-                </div>
+            
+            <div class="mt-4 text-center opacity-50 hover:opacity-100 transition-opacity">
+                 <span class="text-[10px] text-slate-600 font-mono">SECURE CHANNEL // <span id="session-id">INIT</span></span>
             </div>
-
-            <!-- VIEW: TERMINAL -->
-            <div id="view-terminal" class="absolute inset-0 flex flex-col transition-opacity duration-300 opacity-0 pointer-events-none z-0 bg-black">
-                <div class="flex-1 p-4 font-mono text-xs overflow-y-auto" id="terminal-output">
-                    <div class="text-[var(--color-success)]">root@skynet:~$ systemctl start agent_service</div>
-                    <div class="text-[var(--color-text-muted)]">[OK] Agent service started.</div>
-                    <div class="text-[var(--color-text-muted)]">[INFO] Listening on port 8000...</div>
-                </div>
-            </div>
-
         </div>
+
+        <!-- CENTER COLUMN: Visual Spacer (40%) -->
+        <div class="w-[40%] h-full pointer-events-none flex flex-col justify-end pb-10 items-center">
+             <!-- Brain is visible through here -->
+             <div id="agent-status" class="px-4 py-1.5 rounded-full bg-black/60 border border-white/10 backdrop-blur-md text-[10px] font-mono text-slate-400 mb-8 transition-all">
+                 SYSTEM IDLE
+             </div>
+        </div>
+
+        <!-- RIGHT COLUMN: HUD & Logs (30%) -->
+        <div class="w-[30%] h-full pointer-events-auto flex flex-col p-6 backdrop-blur-3xl bg-black/40 border-l border-white/5 shadow-2xl relative">
+             <header class="flex-none mb-6 flex justify-between items-center">
+                <div class="font-mono text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <span class="text-emerald-500">⚡</span> SYSTEM LOGS
+                </div>
+            </header>
+
+            <!-- Rolling Log -->
+            <div id="agent-console" class="flex-1 overflow-y-auto space-y-3 font-mono text-[11px] scrollbar-hide pr-2 mask-linear-fade">
+                <div class="text-slate-600 italic mt-4">Connecting to neural core...</div>
+            </div>
+
+            <!-- Terminal/Tool Output (Bottom of Right Panel) -->
+            <div class="mt-6 h-1/3 border-t border-white/10 pt-4 flex flex-col">
+                <div class="text-[10px] font-bold text-slate-500 tracking-wider mb-2 uppercase">Terminal Output</div>
+                <Terminal />
+            </div>
+        </div>
+
     </main>
 
-    <style>
-        .nav-btn {
-            @apply flex items-center gap-4 p-3 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 hover:text-white transition-all relative overflow-hidden;
-        }
-        .nav-btn.active {
-            @apply bg-white/10 text-white;
-        }
-    </style>
-
     <script>
-        // --- STATE MANAGEMENT ---
-        let currentTab = 'chat';
         let currentConversationId = null;
         const ws = new WebSocket(`ws://${window.location.host}/ws`);
         
-        // --- DOM ELEMENTS ---
-        const views = {
-            chat: document.getElementById('view-chat'),
-            mission: document.getElementById('view-mission'),
-            terminal: document.getElementById('view-terminal')
-        };
-        const tabs = {
-            chat: document.getElementById('tab-chat'),
-            mission: document.getElementById('tab-mission'),
-            terminal: document.getElementById('tab-terminal')
-        };
         const chatBox = document.getElementById('chat-box');
         const messagesPanel = document.getElementById('messages-panel');
-        const terminalOutput = document.getElementById('terminal-output');
-        const planContainer = document.getElementById('plan-container');
+        const agentConsole = document.getElementById('agent-console');
         const sessionIdEl = document.getElementById('session-id');
-        const sendBtn = document.getElementById('send-btn');
-        const stopBtn = document.getElementById('stop-btn');
+        const agentStatus = document.getElementById('agent-status');
 
-        // --- TAB SWITCHING ---
-        window.switchTab = (tabName) => {
-            // Update State
-            currentTab = tabName;
-            
-            // Update UI Classes
-            Object.keys(views).forEach(key => {
-                const view = views[key];
-                const tab = tabs[key];
-                
-                if (key === tabName) {
-                    view.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
-                    view.classList.add('z-10');
-                    tab.classList.add('active');
-                } else {
-                    view.classList.add('opacity-0', 'pointer-events-none', 'z-0');
-                    view.classList.remove('z-10');
-                    tab.classList.remove('active');
-                }
-            });
-        };
-
-        // --- CHAT FUNCTIONS ---
         function appendMessage(role, content) {
             if (!chatBox) return;
-            
-            // Clear initial placeholder if it exists
-            if (chatBox.children.length === 1 && chatBox.children[0].classList.contains('text-center')) {
+            // Clear initial state
+            if (chatBox.children.length === 1 && chatBox.children[0].className.includes('text-center')) {
                 chatBox.innerHTML = '';
             }
 
             const msgDiv = document.createElement('div');
             const isUser = role === 'user';
             
-            msgDiv.className = `flex gap-4 max-w-[90%] ${isUser ? 'ml-auto flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`;
+            // Simplified chat bubbles for floating UI
+            msgDiv.className = `flex gap-3 max-w-[90%] ${isUser ? 'ml-auto flex-row-reverse' : ''} animate-slide-up mb-4`;
             
-            let avatar = isUser 
-                ? `<div class="w-10 h-10 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-xl shadow-[0_0_15px_var(--color-accent-dim)] text-black font-bold">👤</div>`
-                : `<div class="w-10 h-10 rounded-lg bg-black border border-[var(--color-border)] flex items-center justify-center text-xl shadow-lg">🤖</div>`;
+            const bubbleClass = isUser 
+                ? 'bg-indigo-600/90 text-white shadow-glow-indigo rounded-2xl rounded-tr-sm' 
+                : 'bg-black/60 border border-slate-700/50 text-slate-200 rounded-2xl rounded-tl-sm backdrop-blur-sm';
 
-            // Special handling for Thought Process
-            if (role === 'agent-thought') {
-                msgDiv.className = `flex gap-4 max-w-[90%] opacity-70 hover:opacity-100 transition-opacity`;
-                avatar = `<div class="w-10 h-10 flex items-center justify-center text-xl">💭</div>`;
-                content = `<div class="text-xs font-mono text-[var(--color-accent)] mb-1">REASONING_CORE</div>${content}`;
-            }
-            
-            // Special handling for Action/Tool
-            if (role === 'agent-action') {
-                const isError = content.includes('Error') || content.includes('Exception');
-                const colorClass = isError ? 'text-[var(--color-error)] border-[var(--color-error)]' : 'text-[var(--color-success)] border-[var(--color-success)]';
-                
-                // Log to terminal as well
-                logToTerminal(content, isError ? 'ERROR' : 'INFO');
-                
-                msgDiv.className = `flex gap-4 max-w-[90%]`;
-                avatar = `<div class="w-10 h-10 flex items-center justify-center text-xl">⚡</div>`;
-                content = `
-                    <div class="font-mono text-xs border-l-2 pl-3 ${colorClass} bg-black/30 p-2 rounded">
-                        <div class="font-bold mb-1 opacity-50">TOOL EXECUTION</div>
-                        <div class="whitespace-pre-wrap overflow-x-auto">${content}</div>
-                    </div>`;
-            } else {
-                // Normal message parsing
-                // @ts-ignore
+             if (typeof marked !== 'undefined' && role !== 'user') {
                 content = marked.parse(content);
             }
 
-            const bubbleClass = isUser ? 'bubble-user' : (role === 'agent-thought' ? 'bubble-thought' : 'bubble-agent');
-            
             msgDiv.innerHTML = `
-                ${avatar}
-                <div class="${bubbleClass} p-4 shadow-lg text-sm leading-relaxed w-full overflow-hidden">
+                <div class="${bubbleClass} px-5 py-3 text-sm leading-relaxed shadow-lg backdrop-blur-sm">
                     ${content}
                 </div>
             `;
             
             chatBox.appendChild(msgDiv);
-            messagesPanel.scrollTop = messagesPanel.scrollHeight;
+            if(messagesPanel) messagesPanel.scrollTop = messagesPanel.scrollHeight;
         }
 
-        // --- TERMINAL FUNCTIONS ---
-        function logToTerminal(message, type = 'INFO') {
-            if (!terminalOutput) return;
+        function logAgentThought(content) {
+            // Also log to Terminal (Raw)
+            logToTerminal(`[THOUGHT] ${content}`, 'text-purple-400/80');
             
-            const line = document.createElement('div');
-            const timestamp = new Date().toLocaleTimeString();
-            let color = 'text-[var(--color-text-muted)]';
-            if (type === 'ERROR') color = 'text-[var(--color-error)]';
-            if (type === 'SUCCESS') color = 'text-[var(--color-success)]';
-            
-            line.className = `${color} border-b border-white/5 py-1 hover:bg-white/5 px-2`;
-            line.innerHTML = `<span class="opacity-50">[${timestamp}]</span> <span class="font-bold">[${type}]</span> ${message}`;
-            
-            terminalOutput.appendChild(line);
-            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+            if (!agentConsole) return;
+            const div = document.createElement('div');
+            div.className = "pl-2 border-l-2 border-indigo-500/30 text-indigo-300/80 animate-fade-in";
+            div.innerText = `> ${content}`;
+            agentConsole.appendChild(div);
+            agentConsole.scrollTop = agentConsole.scrollHeight;
         }
 
-        // --- PLAN FUNCTIONS ---
-        function updatePlan(planText) {
-            if (!planContainer) return;
-            
-            // Simple parsing of markdown checklist
-            const lines = planText.split('\n');
-            let html = '';
-            
-            lines.forEach(line => {
-                if (line.trim().startsWith('- [ ]')) {
-                    html += `<div class="flex items-center gap-3 p-3 border border-[var(--color-border)] rounded bg-black/20 text-[var(--color-text-muted)]">
-                        <div class="w-4 h-4 border border-[var(--color-text-muted)] rounded"></div>
-                        <span>${line.replace('- [ ]', '')}</span>
-                    </div>`;
-                } else if (line.trim().startsWith('- [x]')) {
-                    html += `<div class="flex items-center gap-3 p-3 border border-[var(--color-success)]/30 rounded bg-[var(--color-success)]/5 text-[var(--color-text-main)]">
-                        <div class="w-4 h-4 bg-[var(--color-success)] rounded flex items-center justify-center text-black text-xs">✓</div>
-                        <span class="line-through opacity-50">${line.replace('- [x]', '')}</span>
-                    </div>`;
-                } else if (line.trim().startsWith('#')) {
-                    html += `<h3 class="text-[var(--color-accent)] font-bold mt-4 mb-2 font-mono uppercase tracking-wider">${line.replace(/#/g, '')}</h3>`;
-                }
-            });
-            
-            planContainer.innerHTML = html;
+        function logAgentAction(content) {
+            // Also log to Terminal (Raw)
+            logToTerminal(`[ACTION] ${content}`, 'text-amber-400/80');
+
+            if (!agentConsole) return;
+            const isError = content.includes('Error');
+            const div = document.createElement('div');
+            div.className = `pl-2 border-l-2 ${isError ? 'border-red-500 text-red-400' : 'border-emerald-500 text-emerald-400'} animate-fade-in font-bold`;
+            div.innerText = `[${isError ? 'ERR' : 'EXE'}] ${content}`;
+            agentConsole.appendChild(div);
+            agentConsole.scrollTop = agentConsole.scrollHeight;
+        }
+        
+        function logToTerminal(text, colorClass = 'text-slate-400') {
+             const term = document.getElementById('terminal-output');
+             if(!term) return;
+             
+             const line = document.createElement('div');
+             line.className = `font-mono whitespace-pre-wrap ${colorClass} text-[9px]`;
+             // Add timestamp
+             const time = new Date().toISOString().split('T')[1].split('.')[0];
+             line.innerText = `[${time}] ${text}`;
+             
+             term.appendChild(line);
+             term.scrollTop = term.scrollHeight;
         }
 
-        // --- WEBSOCKET HANDLERS ---
-        ws.onmessage = (event) => {
+         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
             if (data.type === 'conversation_created') {
@@ -321,70 +163,101 @@ import '../styles/theme.css';
                 return;
             }
             
-            if (data.type === 'plan_update') {
-                updatePlan(data.content);
-                // Also switch to mission tab if it's the first plan
-                if (planContainer.innerText.includes('NO ACTIVE PLAN')) {
-                    switchTab('mission');
-                }
-                return;
-            }
-            
-            appendMessage(data.role, data.content);
-            
-            if (data.role === 'agent-thought' || data.role === 'agent-action') {
+            if (data.role === 'agent-thought') {
+                logAgentThought(data.content);
+                if (window.positronicBrain) window.positronicBrain.fireSignal(data.content);
                 setThinking(true);
+            } else if (data.role === 'agent-action') {
+                logAgentAction(data.content);
+                if (window.positronicBrain) window.positronicBrain.fireSignal(data.content);
+                setThinking(true);
+            } else if (data.role === 'terminal-output') {
+                 // Enhanced Terminal Rendering
+                 try {
+                     const termData = JSON.parse(data.content);
+                     const term = document.getElementById('terminal-output');
+                     if(term) {
+                         const entry = document.createElement('div');
+                         entry.className = "mb-3 pb-1 font-mono text-[10px]";
+
+                         if (termData.type === 'thought') {
+                             // Render as comment
+                             entry.innerHTML = `<span class="text-slate-500 italic"># ${termData.content}</span>`;
+                         } else {
+                             // Render as command
+                             const cmd = termData.command || "unknown_tool";
+                             const out = termData.output || "";
+                             
+                             // Truncate output if massive
+                             const displayOut = out.length > 500 ? out.substring(0, 500) + "... [truncated]" : out;
+
+                             entry.innerHTML = `
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                                    <span class="text-blue-500">root@skynet</span><span class="text-slate-500">:</span><span class="text-blue-300">~</span>$ ${cmd}
+                                </div>
+                                <div class="mt-1 text-slate-300 whitespace-pre-wrap leading-tight pl-4 border-l-2 border-emerald-500/20 py-1">${displayOut}</div>
+                             `;
+                         }
+                         
+                         term.appendChild(entry);
+                         term.scrollTop = term.scrollHeight;
+                     }
+                 } catch (e) {
+                     console.error("Failed to parse terminal output", e);
+                 }
+            } else if (data.role === 'system') {
             } else {
-                setThinking(false);
+                appendMessage(data.role, data.content);
+                if (data.role === 'assistant') {
+                    if (window.positronicBrain) window.positronicBrain.fireSignal(data.content);
+                    setThinking(false);
+                    const statusEl = document.getElementById('agent-status');
+                    if(statusEl) {
+                        statusEl.textContent = 'IDLE';
+                        statusEl.className = 'text-[9px] font-mono text-slate-500';
+                    }
+                }
             }
         };
 
         function setThinking(isThinking) {
-            if (isThinking) {
-                sendBtn.classList.add('hidden');
-                stopBtn.classList.remove('hidden');
+             const statusEl = document.getElementById('agent-status');
+             if(!statusEl) return;
+             
+             if (isThinking) {
+                statusEl.textContent = 'PROCESSING...';
+                statusEl.className = 'text-[9px] font-mono text-emerald-400 animate-pulse';
             } else {
-                sendBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
+                statusEl.textContent = 'IDLE';
+                statusEl.className = 'text-[9px] font-mono text-slate-500';
             }
         }
 
-        // --- EVENT LISTENERS ---
-        const chatForm = document.getElementById('chat-form');
-        const promptInput = document.getElementById('prompt-input');
+        // Chat Form Handling (delegate to ChatInterface logic if possible, or reimplement connection)
         
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const goal = promptInput.value;
-            if (goal) {
-                appendMessage('user', goal);
-                ws.send(JSON.stringify({
-                    goal: goal,
-                    conversation_id: currentConversationId
-                }));
-                promptInput.value = '';
-                setThinking(true);
+        // Wait for DOM
+        setTimeout(() => {
+            const chatForm = document.getElementById('chat-form');
+            const promptInput = document.getElementById('prompt-input');
+            const sendBtn = document.getElementById('send-btn');
+            
+            if(chatForm) {
+                chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const goal = promptInput.value;
+                    if (goal) {
+                        appendMessage('user', goal);
+                        ws.send(JSON.stringify({
+                            goal: goal,
+                            conversation_id: currentConversationId
+                        }));
+                        promptInput.value = '';
+                        setThinking(true);
+                    }
+                });
             }
-        });
-
-        document.getElementById('new-chat-btn').addEventListener('click', () => {
-            currentConversationId = null;
-            sessionIdEl.textContent = 'NEW OPERATION';
-            chatBox.innerHTML = `
-                <div class="text-center mt-20 opacity-50">
-                    <div class="text-6xl mb-4">🤖</div>
-                    <div class="text-xl font-mono text-[var(--color-accent)]">SKYNET ONLINE</div>
-                    <div class="text-sm text-[var(--color-text-muted)] mt-2">Awaiting instructions...</div>
-                </div>
-            `;
-            terminalOutput.innerHTML = '';
-            planContainer.innerHTML = `
-                <div class="p-6 border border-[var(--color-border)] rounded bg-white/5 text-center text-[var(--color-text-muted)] font-mono">
-                    NO ACTIVE PLAN DETECTED
-                </div>
-            `;
-        });
-
+        }, 500); 
+        
     </script>
 </body>
 </html>

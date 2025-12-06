@@ -2,8 +2,8 @@ import json
 import asyncio
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from services.database import models
-from services.agent import orchestrator
+from backend.services.database import models
+from backend.services.agent import orchestrator
 from backend.dependencies import get_db
 from backend.logger import logger
 
