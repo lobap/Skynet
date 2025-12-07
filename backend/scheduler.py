@@ -1,31 +1,29 @@
-try:
-    from apscheduler.schedulers.asyncio import AsyncIOScheduler
-    from apscheduler.jobstores.memory import MemoryJobStore
-    SCHEDULER_AVAILABLE = True
-except ImportError:
-    SCHEDULER_AVAILABLE = False
-    AsyncIOScheduler = None
-    MemoryJobStore = None
+"""APScheduler integration for scheduled tasks."""
 
 import logging
 from backend.logger import logger
 
-logging.basicConfig()
-logging.getLogger('apscheduler').setLevel(logging.WARNING)
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.jobstores.memory import MemoryJobStore
+    scheduler = AsyncIOScheduler(jobstores={'default': MemoryJobStore()})
+except ImportError:
+    scheduler = None
 
-scheduler = AsyncIOScheduler(jobstores={'default': MemoryJobStore()}) if SCHEDULER_AVAILABLE else None
+logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
 
 def start_scheduler():
+    """Start the scheduler if available."""
     if scheduler and not scheduler.running:
         scheduler.start()
-        logger.info("APScheduler started.")
+        logger.info("Scheduler started")
     elif not scheduler:
-        logger.warning("APScheduler not available (module missing).")
+        logger.warning("APScheduler not installed")
 
 
 def stop_scheduler():
+    """Stop the scheduler."""
     if scheduler and scheduler.running:
         scheduler.shutdown()
-        logger.info("APScheduler stopped.")
-
+        logger.info("Scheduler stopped")

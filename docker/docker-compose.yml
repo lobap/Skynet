@@ -10,6 +10,9 @@ services:
       - pip-cache:/root/.cache/pip
       - /app/frontend/node_modules
       - ./entrypoint.sh:/usr/local/bin/entrypoint.sh
+      # Git credentials for Evolution Persistence
+      - ~/.gitconfig:/root/.gitconfig:ro
+      - ~/.ssh:/root/.ssh:ro
     ports:
       - "8000:8000"
       - "4321:4321"

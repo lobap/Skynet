@@ -1,3 +1,5 @@
+"""System information routes."""
+
 import socket
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -6,10 +8,12 @@ from backend import scheduler
 from backend.dependencies import get_db
 from backend.config import settings
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
-@router.get("/api/info")
-async def get_system_info():
+
+@router.get("/info")
+async def info():
+    """System and model info."""
     return {
         "models": {
             "orchestrator": settings.MODEL_FAST,
@@ -19,14 +23,16 @@ async def get_system_info():
         "hostname": socket.gethostname()
     }
 
-@router.get("/api/changelog")
-async def get_changelog(db: Session = Depends(get_db)):
-    logs = db.query(models.SystemLog).order_by(models.SystemLog.timestamp.desc()).limit(20).all()
-    return logs
 
-@router.get("/api/tasks/active")
-async def get_active_tasks():
+@router.get("/changelog")
+async def changelog(db: Session = Depends(get_db)):
+    """Recent system logs."""
+    return db.query(models.SystemLog).order_by(models.SystemLog.timestamp.desc()).limit(20).all()
+
+
+@router.get("/tasks/active")
+async def active_tasks():
+    """Scheduled jobs."""
     if not scheduler.scheduler:
         return []
-    jobs = scheduler.scheduler.get_jobs()
-    return [{"id": job.id, "name": job.name, "next_run": str(job.next_run_time)} for job in jobs]
+    return [{"id": j.id, "name": j.name, "next_run": str(j.next_run_time)} for j in scheduler.scheduler.get_jobs()]

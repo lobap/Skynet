@@ -1,152 +1,163 @@
-import os
-from typing import List, Dict, Any, Optional
-try:
-    import chromadb
-    from chromadb.utils import embedding_functions
-    CHROMA_AVAILABLE = True
-except ImportError:
-    CHROMA_AVAILABLE = False
-    chromadb = None
+"""Vector memory manager with ChromaDB."""
 
+import os
 import glob
+import asyncio
+from typing import Any
 from backend.config import settings
 from backend.logger import logger
 
+try:
+    import aiofiles
+    AIOFILES = True
+except ImportError:
+    AIOFILES = False
+
+try:
+    import chromadb
+    from chromadb.utils import embedding_functions
+    CHROMA = True
+except ImportError:
+    CHROMA = False
+    chromadb = None
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SKIP_PATTERNS = ["venv", "__pycache__", ".git", ".db", "node_modules"]
+
 
 class MemoryManager:
-    def __init__(self, persist_path: Optional[str] = None):
+    """Vector memory for codebase knowledge."""
+    
+    def __init__(self, path: str | None = None):
         self.collection = None
-        if not CHROMA_AVAILABLE:
-            logger.warning("ChromaDB not installed. Memory features disabled.")
+        if not CHROMA:
+            logger.warning("ChromaDB not installed")
             return
-
-        if persist_path is None:
-            persist_path = settings.MEMORY_INDEX_PATH
-            
-        os.makedirs(persist_path, exist_ok=True)
         
-        self.client = chromadb.PersistentClient(path=persist_path)
-        self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+        path = path or settings.MEMORY_INDEX_PATH
+        os.makedirs(path, exist_ok=True)
+        
+        self.client = chromadb.PersistentClient(path=path)
         self.collection = self.client.get_or_create_collection(
             name="codebase_knowledge",
-            embedding_function=self.embedding_fn
+            embedding_function=embedding_functions.DefaultEmbeddingFunction()
         )
-        logger.info("💾 Memory Manager loaded (Light Mode).")
-
-    def chunk_content(self, content, file_path):
-        chunks = []
-        lines = content.split('\n')
-        
-        if file_path.endswith('.py'):
-            current_chunk = []
-            for line in lines:
-                if (line.startswith('def ') or line.startswith('class ') or line.startswith('@')) and len(current_chunk) > 0:
-                    if len('\n'.join(current_chunk)) < 50:
-                        current_chunk.append(line)
-                    else:
-                        chunks.append('\n'.join(current_chunk))
-                        current_chunk = [line]
-                else:
-                    current_chunk.append(line)
-                    
-                if len(current_chunk) > 100:
-                    chunks.append('\n'.join(current_chunk))
-                    current_chunk = []
-            
-            if current_chunk:
-                chunks.append('\n'.join(current_chunk))
-        else:
-            current_chunk = []
-            for line in lines:
-                current_chunk.append(line)
-                if len(current_chunk) > 50:
-                    chunks.append('\n'.join(current_chunk))
-                    current_chunk = []
-            if current_chunk:
-                chunks.append('\n'.join(current_chunk))
-                
-        return [c for c in chunks if c.strip()]
-
-    def index_codebase(self):
+        logger.info("💾 Memory loaded")
+    
+    async def index_codebase(self) -> str:
+        """Index codebase files."""
         if not self.collection:
-            return "Memory disabled (ChromaDB missing)."
-            
-        root_dirs = [os.path.join(BASE_DIR, "backend"), os.path.join(BASE_DIR, "services")]
-        documents = []
-        metadatas = []
-        ids = []
+            return "Memory disabled"
         
-        for root_dir in root_dirs:
-            files = glob.glob(os.path.join(root_dir, "**", "*.py"), recursive=True)
-            files.extend(glob.glob(os.path.join(root_dir, "**", "*.txt"), recursive=True))
-            files.extend(glob.glob(os.path.join(root_dir, "**", "*.md"), recursive=True))
+        if not AIOFILES:
+            return self._index_sync()
+        
+        docs, metas, ids = [], [], []
+        
+        for root in [os.path.join(BASE_DIR, "backend"), os.path.join(BASE_DIR, "services")]:
+            if not os.path.exists(root):
+                continue
             
-            for file_path in files:
-                if any(x in file_path for x in ["venv", "__pycache__", ".git", ".db", "node_modules"]):
-                    continue
+            for ext in ("*.py", "*.txt", "*.md"):
+                for path in glob.glob(os.path.join(root, "**", ext), recursive=True):
+                    if any(p in path for p in SKIP_PATTERNS):
+                        continue
                     
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
+                    try:
+                        async with aiofiles.open(path, "r", encoding="utf-8") as f:
+                            content = await f.read()
                         if not content.strip():
                             continue
-                            
-                        file_chunks = self.chunk_content(content, file_path)
-                        rel_path = os.path.relpath(file_path, BASE_DIR)
                         
-                        for i, chunk in enumerate(file_chunks):
-                            documents.append(chunk)
-                            metadatas.append({"source": rel_path, "chunk_id": i})
-                            ids.append(f"{rel_path}_{i}")
-                except Exception as e:
-                    logger.debug(f"Skipping {file_path}: {e}")
-
-        if documents:
-            batch_size = 100
-            for i in range(0, len(documents), batch_size):
-                end = min(i + batch_size, len(documents))
-                self.collection.upsert(
-                    documents=documents[i:end],
-                    metadatas=metadatas[i:end],
-                    ids=ids[i:end]
-                )
-        return f"Indexed {len(documents)} chunks from codebase."
-
-    def index_text(self, source: str, text: str):
-        """Indexes arbitrary text content (e.g., from documentation)."""
+                        rel = os.path.relpath(path, BASE_DIR)
+                        for i, chunk in enumerate(self._chunk(content, path)):
+                            docs.append(chunk)
+                            metas.append({"source": rel, "chunk_id": i})
+                            ids.append(f"{rel}_{i}")
+                    except Exception:
+                        pass
+        
+        await self._upsert_batched(docs, metas, ids)
+        return f"Indexed {len(docs)} chunks"
+    
+    def _index_sync(self) -> str:
+        """Sync fallback."""
+        docs, metas, ids = [], [], []
+        
+        for path in glob.glob(os.path.join(BASE_DIR, "backend", "**", "*.py"), recursive=True):
+            if any(p in path for p in SKIP_PATTERNS):
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    rel = os.path.relpath(path, BASE_DIR)
+                    for i, chunk in enumerate(self._chunk(f.read(), path)):
+                        docs.append(chunk)
+                        metas.append({"source": rel, "chunk_id": i})
+                        ids.append(f"{rel}_{i}")
+            except Exception:
+                pass
+        
+        if docs:
+            self.collection.upsert(documents=docs, metadatas=metas, ids=ids)
+        return f"Indexed {len(docs)} chunks"
+    
+    async def index_text(self, source: str, text: str) -> str:
+        """Index external text."""
         if not self.collection:
-            return "Memory disabled."
-
-        chunks = self.chunk_content(text, source)
-        documents = []
-        metadatas = []
-        ids = []
+            return "Memory disabled"
         
-        # Sanitize source for ID
-        safe_source = "".join([c if c.isalnum() else "_" for c in source])[-50:]
+        safe = "".join(c if c.isalnum() else "_" for c in source)[-50:]
+        docs, metas, ids = [], [], []
         
-        for i, chunk in enumerate(chunks):
-            documents.append(chunk)
-            metadatas.append({"source": source, "chunk_id": i, "type": "external_knowledge"})
-            ids.append(f"ext_{safe_source}_{i}")
-            
-        if documents:
-            self.collection.upsert(
-                documents=documents,
-                metadatas=metadatas,
-                ids=ids
-            )
-        return f"Indexed {len(documents)} chunks from {source}."
-
-    def query(self, query_text, n_results=3):
+        for i, chunk in enumerate(self._chunk(text, source)):
+            docs.append(chunk)
+            metas.append({"source": source, "chunk_id": i, "type": "external"})
+            ids.append(f"ext_{safe}_{i}")
+        
+        await self._upsert_batched(docs, metas, ids)
+        return f"Indexed {len(docs)} chunks from {source}"
+    
+    async def query(self, text: str, n: int = 3) -> dict[str, Any]:
+        """Query memory."""
         if not self.collection:
             return {"documents": [], "metadatas": []}
-            
-        results = self.collection.query(
-            query_texts=[query_text],
-            n_results=n_results
+        
+        return await asyncio.to_thread(
+            self.collection.query, query_texts=[text], n_results=n
         )
-        return results
+    
+    async def _upsert_batched(self, docs: list, metas: list, ids: list, batch: int = 100):
+        """Upsert in batches to avoid blocking."""
+        for i in range(0, len(docs), batch):
+            end = min(i + batch, len(docs))
+            await asyncio.to_thread(
+                self.collection.upsert,
+                documents=docs[i:end], metadatas=metas[i:end], ids=ids[i:end]
+            )
+    
+    def _chunk(self, content: str, path: str) -> list[str]:
+        """Split content into chunks."""
+        lines = content.split('\n')
+        chunks = []
+        current = []
+        
+        is_python = path.endswith('.py')
+        limit = 100 if is_python else 50
+        
+        for line in lines:
+            if is_python and (line.startswith('def ') or line.startswith('class ')) and len(current) > 5:
+                chunks.append('\n'.join(current))
+                current = []
+            
+            current.append(line)
+            if len(current) > limit:
+                chunks.append('\n'.join(current))
+                current = []
+        
+        if current:
+            chunks.append('\n'.join(current))
+        
+        return [c for c in chunks if c.strip()]
+
 
 memory = MemoryManager()

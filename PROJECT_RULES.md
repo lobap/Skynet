@@ -1,7 +1,7 @@
 # Skynet Project Rules & Preferences
 
 ## General
-- **Root Directory**: Keep it clean. Only `backend/`, `frontend/`, `docker/`, `scripts/`, and config files (`package.json`, `PROJECT_RULES.md`) should exist here.
+- **Root Directory**: Keep it clean. Only `backend/`, `frontend/`, `docker/`, `scripts/`, and config files should exist here.
 - **Scripts**: All utility scripts go in `scripts/`.
 
 ## Docker

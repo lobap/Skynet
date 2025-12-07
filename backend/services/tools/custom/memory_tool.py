@@ -1,34 +1,30 @@
+"""Memory query and indexing tools."""
+
 from backend.services.memory.memory_manager import memory
 
+
 async def query_memory(query: str) -> str:
-    """
-    Searches the codebase memory for relevant code snippets or documentation.
-    Useful for understanding how existing features are implemented before modifying them.
-    """
+    """Search codebase memory for relevant snippets."""
     try:
-        # Auto-index on first query if empty? Or just assume it's indexed.
-        # Let's trigger a quick index refresh if it's a "how to" query to ensure freshness, 
-        # but that might be slow. Let's assume it's indexed or index explicitly.
-        # For this implementation, we'll just query.
+        results = await memory.query(query, n=3)
         
-        results = memory.query(query, n_results=3)
+        if not results.get('documents') or not results['documents'][0]:
+            return "No results found"
         
         output = []
-        if results['documents']:
-            for i, doc in enumerate(results['documents'][0]):
-                source = results['metadatas'][0][i]['source']
-                output.append(f"--- Source: {source} ---\n{doc[:1000]}...\n(truncated)\n")
+        for i, doc in enumerate(results['documents'][0]):
+            source = results['metadatas'][0][i].get('source', 'unknown')
+            output.append(f"--- {source} ---\n{doc[:1000]}...")
         
-        return "\n".join(output) if output else "No relevant information found in memory."
+        return "\n\n".join(output)
     except Exception as e:
-        return f"Memory query error: {str(e)}"
+        return f"Query error: {e}"
+
 
 async def index_memory() -> str:
-    """
-    Forces a re-indexing of the codebase. Use this after making significant changes.
-    """
+    """Re-index codebase for memory queries."""
     try:
-        res = memory.index_codebase()
-        return f"Memory re-indexed: {res}"
+        result = await memory.index_codebase()
+        return f"Indexed: {result}"
     except Exception as e:
-        return f"Indexing error: {str(e)}"
+        return f"Index error: {e}"

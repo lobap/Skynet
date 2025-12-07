@@ -1,3 +1,5 @@
+"""Conversation and WebSocket routes."""
+
 import json
 import asyncio
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
@@ -7,41 +9,43 @@ from backend.services.agent import orchestrator
 from backend.dependencies import get_db
 from backend.logger import logger
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
-@router.get("/api/conversations")
+
+@router.get("/conversations")
 async def get_conversations(db: Session = Depends(get_db)):
+    """List all conversations."""
     return db.query(models.Conversation).order_by(models.Conversation.created_at.desc()).all()
 
-@router.get("/api/conversations/{conversation_id}")
-async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
-    logs = db.query(models.ChatLog).filter(models.ChatLog.conversation_id == conversation_id).order_by(models.ChatLog.timestamp).all()
-    return [{"role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in logs]
 
-@router.get("/api/conversations/{conversation_id}/logs")
-async def get_conversation_logs(
-    conversation_id: int, 
-    limit: int = 50, 
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Paginated chat logs for on-demand loading"""
-    total = db.query(models.ChatLog).filter(models.ChatLog.conversation_id == conversation_id).count()
+@router.get("/conversations/{cid}")
+async def get_conversation(cid: int, db: Session = Depends(get_db)):
+    """Get conversation by ID."""
     logs = db.query(models.ChatLog).filter(
-        models.ChatLog.conversation_id == conversation_id
+        models.ChatLog.conversation_id == cid
+    ).order_by(models.ChatLog.timestamp).all()
+    return [{"role": l.role, "content": l.content, "timestamp": l.timestamp.isoformat()} for l in logs]
+
+
+@router.get("/conversations/{cid}/logs")
+async def get_logs(cid: int, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+    """Paginated chat logs."""
+    total = db.query(models.ChatLog).filter(models.ChatLog.conversation_id == cid).count()
+    logs = db.query(models.ChatLog).filter(
+        models.ChatLog.conversation_id == cid
     ).order_by(models.ChatLog.timestamp.desc()).offset(offset).limit(limit).all()
     
     return {
-        "total": total,
-        "offset": offset,
-        "limit": limit,
+        "total": total, "offset": offset, "limit": limit,
         "has_more": offset + limit < total,
-        "logs": [{"id": log.id, "role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in reversed(logs)]
+        "logs": [{"id": l.id, "role": l.role, "content": l.content, "timestamp": l.timestamp.isoformat()} 
+                 for l in reversed(logs)]
     }
 
-@router.get("/api/chat/latest")
-async def get_latest_conversation(db: Session = Depends(get_db)):
-    """Get latest conversation with recent logs"""
+
+@router.get("/chat/latest")
+async def get_latest(db: Session = Depends(get_db)):
+    """Get latest conversation with logs."""
     conv = db.query(models.Conversation).order_by(models.Conversation.created_at.desc()).first()
     if not conv:
         return {"conversation": None, "logs": []}
@@ -52,52 +56,63 @@ async def get_latest_conversation(db: Session = Depends(get_db)):
     
     return {
         "conversation": {"id": conv.id, "title": conv.title, "created_at": conv.created_at.isoformat()},
-        "logs": [{"id": log.id, "role": log.role, "content": log.content, "timestamp": log.timestamp.isoformat()} for log in reversed(logs)],
+        "logs": [{"id": l.id, "role": l.role, "content": l.content, "timestamp": l.timestamp.isoformat()} 
+                 for l in reversed(logs)],
         "has_more": len(logs) == 50
     }
 
-@router.post("/api/conversations")
+
+@router.post("/conversations")
 async def create_conversation(db: Session = Depends(get_db)):
-    new_chat = models.Conversation(title="New Chat")
-    db.add(new_chat)
+    """Create new conversation."""
+    conv = models.Conversation(title="New Chat")
+    db.add(conv)
     db.commit()
-    db.refresh(new_chat)
-    return {"id": new_chat.id, "title": new_chat.title}
+    db.refresh(conv)
+    return {"id": conv.id, "title": conv.title}
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+    """WebSocket for real-time agent communication."""
     await websocket.accept()
-    agent_task = None
+    agent_task: asyncio.Task | None = None
     
     try:
         while True:
             data = await websocket.receive_text()
-            message = json.loads(data)
+            msg = json.loads(data)
             
-            if message.get("action") == "stop":
+            # Handle stop action
+            if msg.get("action") == "stop":
                 if agent_task and not agent_task.done():
                     agent_task.cancel()
                     try:
                         await agent_task
                     except asyncio.CancelledError:
                         pass
-                    await websocket.send_text(json.dumps({"role": "system", "content": "Processing stopped by user."}))
+                    await websocket.send_text(json.dumps({"role": "system", "content": "Stopped"}))
                 continue
-
-            goal = message.get("goal", "")
-            conversation_id = message.get("conversation_id")
             
-            if not conversation_id:
-                new_chat = models.Conversation(title=goal[:30] + "..." if len(goal) > 30 else goal)
-                db.add(new_chat)
+            goal = msg.get("goal", "")
+            cid = msg.get("conversation_id")
+            
+            # Create conversation if needed
+            if not cid:
+                conv = models.Conversation(title=goal[:30] + "..." if len(goal) > 30 else goal)
+                db.add(conv)
                 db.commit()
-                db.refresh(new_chat)
-                conversation_id = new_chat.id
-                await websocket.send_text(json.dumps({"type": "conversation_created", "id": conversation_id, "title": new_chat.title}))
+                db.refresh(conv)
+                cid = conv.id
+                await websocket.send_text(json.dumps({
+                    "type": "conversation_created", "id": cid, "title": conv.title
+                }))
             
-            db.add(models.ChatLog(role="user", content=goal, conversation_id=conversation_id))
+            # Log user message
+            db.add(models.ChatLog(role="user", content=goal, conversation_id=cid))
             db.commit()
             
+            # Cancel existing task
             if agent_task and not agent_task.done():
                 agent_task.cancel()
                 try:
@@ -105,7 +120,10 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 except asyncio.CancelledError:
                     pass
             
-            agent_task = asyncio.create_task(orchestrator.run_agent_loop(goal, db, websocket, conversation_id))
+            # Start agent
+            agent_task = asyncio.create_task(
+                orchestrator.run_agent_loop(goal, db, websocket, cid)
+            )
             
     except WebSocketDisconnect:
         if agent_task and not agent_task.done():
